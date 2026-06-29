@@ -1008,25 +1008,10 @@ async function runAIAnalysis(content, saving) {
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: `Eres un asistente especializado en enseñanza bíblica mesiánica hebrea para Iglesia Freedom, una congregación de las Raíces Hebreas en Florida. Analiza el texto de predicación/enseñanza y responde ÚNICAMENTE en JSON con este formato exacto:
-{
-  "category": "una de: Bases de la Fe, Doctrina, Historia, Arrepentimiento, Reflexión, Profecía",
-  "confidence": "porcentaje 0-100",
-  "reasoning": "2-3 oraciones explicando por qué esta categoría",
-  "strengths": "fortalezas de la prédica en 1-2 oraciones",
-  "recommendations": "qué temas complementarios podrían tratarse en prédicas futuras",
-  "tags": ["array", "de", "5-8", "palabras", "clave"],
-  "analysis": "párrafo completo de análisis pastoral y teológico de 4-5 oraciones"
-}
-No incluyas nada fuera del JSON.`,
-        messages: [{ role: 'user', content: `Analiza esta prédica de Iglesia Freedom:\n\n${content.substring(0, 3000)}` }]
-      })
+      body: JSON.stringify({ content })
     });
 
     const data = await response.json();
@@ -1063,30 +1048,10 @@ async function generateSchedule() {
   const history = SERMONS.slice(0, 6).map(s => `- ${s.date}: "${s.title}" (${s.category})`).join('\n');
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/api/schedule', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: `Eres un asistente de planificación pastoral para Iglesia Freedom, congregación de Raíces Hebreas Mesiánicas en Florida. 
-Genera un cronograma de 6 prédicas para las próximas semanas, considerando el historial y el calendario de parashot.
-Responde SOLO en JSON:
-{
-  "insight": "análisis breve del balance de categorías en el historial",
-  "sermons": [
-    {
-      "date": "YYYY-MM-DD (sábados próximos)",
-      "parasha": "nombre de la parasha",
-      "title": "título sugerido de la prédica",
-      "category": "categoría",
-      "rationale": "por qué se recomienda este tema ahora",
-      "keyText": "texto bíblico principal sugerido"
-    }
-  ]
-}`,
-        messages: [{ role: 'user', content: `Historial reciente de prédicas:\n${history}\n\nParashot próximas disponibles: Vayeshev, Miketz, Vayigash, Vayechi, Shemot, Vaera\n\nGenera el cronograma.` }]
-      })
+      body: JSON.stringify({ history })
     });
 
     const data = await response.json();
