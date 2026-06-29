@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iglesia Freedom — Centro de Enseñanza</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0F1B2D;
+    --navy-mid: #1A2D45;
+    --navy-light: #243B57;
+    --gold: #C9A84C;
+    --gold-light: #E2C97E;
+    --gold-dim: #8B6E2A;
+    --cream: #F5F0E8;
+    --cream-dark: #EDE6D8;
+    --stone: #8B8378;
+    --stone-light: #B8B0A5;
+    --text-main: #1C1C1E;
+    --text-mid: #4A4A4A;
+    --text-soft: #7A7A7A;
+    --white: #FFFFFF;
+    --red: #C0392B;
+    --green: #1A6B3C;
+    --blue: #1A4A8B;
+    --purple: #5B2D8E;
+    --sidebar-w: 240px;
+    --radius: 8px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--cream); color: var(--text-main); }
+
+  /* ── Layout ── */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--navy);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+  }
+  .logo-menorah {
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: 4px;
+  }
+  .logo-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gold);
+    text-align: center;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .logo-sub {
+    font-size: 10px;
+    color: var(--stone-light);
+    text-align: center;
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-nav { padding: 16px 0; flex: 1; }
+  .nav-section-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--stone);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 12px 20px 4px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    color: var(--stone-light);
+    font-size: 13px;
+    font-weight: 400;
+    transition: all .15s;
+    border-left: 3px solid transparent;
+    text-decoration: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--cream); }
+  .nav-item.active { background: rgba(201,168,76,0.12); color: var(--gold); border-left-color: var(--gold); font-weight: 500; }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  /* ── Main ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    background: var(--white);
+    border-bottom: 1px solid var(--cream-dark);
+    padding: 12px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .topbar-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; color: var(--navy); }
+  .topbar-right { display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    padding: 8px 18px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all .15s;
+    font-family: 'Inter', sans-serif;
+  }
+  .btn-gold { background: var(--gold); color: var(--navy); }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-outline { background: transparent; border: 1.5px solid var(--navy-light); color: var(--navy); }
+  .btn-outline:hover { background: var(--cream-dark); }
+  .btn-danger { background: #fde8e6; color: var(--red); border: none; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-icon { padding: 7px 10px; font-size: 15px; }
+
+  .content { flex: 1; overflow-y: auto; padding: 28px; }
+
+  /* ── Views ── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── Calendar ── */
+  .calendar-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .cal-nav { display: flex; gap: 8px; align-items: center; }
+  .cal-month { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: var(--navy); min-width: 200px; text-align: center; }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+  .cal-day-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--stone);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 0 8px;
+  }
+  .cal-day {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 8px;
+    min-height: 80px;
+    border: 1.5px solid transparent;
+    transition: all .15s;
+    cursor: pointer;
+    position: relative;
+  }
+  .cal-day:hover { border-color: var(--gold); box-shadow: var(--shadow); }
+  .cal-day.empty { background: transparent; cursor: default; }
+  .cal-day.today { border-color: var(--gold); background: #FFFCF3; }
+  .cal-day.has-parasha { cursor: pointer; }
+  .day-num { font-size: 12px; font-weight: 500; color: var(--text-mid); margin-bottom: 4px; }
+  .day-num.today-num { color: var(--gold); font-weight: 700; }
+  .parasha-chip {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+    color: var(--gold);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 5px;
+    border-radius: 4px;
+    line-height: 1.4;
+    margin-bottom: 2px;
+    letter-spacing: 0.3px;
+  }
+  .parasha-hebrew { font-size: 11px; color: var(--stone); direction: rtl; }
+  .sermon-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold); display: inline-block; margin-right: 2px;
+    margin-top: 4px;
+  }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,27,45,0.6); z-index: 1000;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white); border-radius: 12px;
+    width: 680px; max-width: 95vw; max-height: 88vh;
+    overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .modal-header {
+    padding: 24px 28px 0;
+    border-bottom: 1px solid var(--cream-dark);
+    padding-bottom: 16px;
+  }
+  .modal-eyebrow { font-size: 10px; font-weight: 600; color: var(--gold); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .modal-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--navy); }
+  .modal-hebrew { font-size: 20px; color: var(--stone); direction: rtl; margin-top: 2px; }
+  .modal-close { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--stone); margin-top: -48px; }
+  .modal-body { padding: 20px 28px 28px; }
+
+  .readings-list { margin: 12px 0; }
+  .reading-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .reading-label { font-size: 11px; font-weight: 600; color: var(--gold); min-width: 60px; padding-top: 1px; }
+  .reading-ref { font-size: 13px; color: var(--text-mid); }
+
+  .synopsis-text {
+    font-family: 'EB Garamond', serif;
+    font-size: 15px; line-height: 1.7; color: var(--text-mid);
+    margin: 16px 0;
+  }
+  .messianic-section { background: #F0F5FF; border-radius: var(--radius); padding: 16px; margin-top: 16px; border-left: 3px solid var(--blue); }
+  .messianic-title { font-size: 11px; font-weight: 700; color: var(--blue); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+  .messianic-text { font-size: 13px; line-height: 1.6; color: var(--text-mid); }
+
+  /* ── Sermon Editor ── */
+  .editor-toolbar {
+    background: var(--white);
+    border: 1.5px solid var(--cream-dark);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 8px 12px;
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+  }
+  .toolbar-btn {
+    padding: 4px 8px; border: none; background: transparent;
+    cursor: pointer; border-radius: 4px; font-size: 13px;
+    color: var(--text-mid); font-family: 'Inter', sans-serif;
+    transition: background .1s;
+  }
+  .toolbar-btn:hover { background: var(--cream-dark); }
+  .toolbar-sep { width: 1px; height: 20px; background: var(--cream-dark); margin: 0 4px; }
+  .editor-area {
+    background: var(--white);
+    border: 1.5px solid var(--cream-dark);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    min-height: 320px;
+    padding: 20px;
+    outline: none;
+    font-family: 'EB Garamond', serif;
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--text-main);
+  }
+  .editor-area:empty::before { content: attr(data-placeholder); color: var(--stone-light); font-style: italic; }
+
+  .doc-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-label { font-size: 11px; font-weight: 600; color: var(--stone); letter-spacing: 0.5px; }
+  .field-input {
+    padding: 8px 12px;
+    border: 1.5px solid var(--cream-dark);
+    border-radius: var(--radius);
+    font-size: 13px;
+    background: var(--white);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    outline: none;
+  }
+  .field-input:focus { border-color: var(--gold); }
+
+  /* ── Sermon List ── */
+  .sermons-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .sermon-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 18px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: all .15s;
+    box-shadow: var(--shadow);
+  }
+  .sermon-card:hover { border-color: var(--gold); transform: translateY(-1px); }
+  .sc-category {
+    display: inline-block;
+    font-size: 10px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; padding: 2px 8px;
+    border-radius: 20px; margin-bottom: 10px;
+  }
+  .sc-title { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 600; color: var(--navy); margin-bottom: 6px; line-height: 1.3; }
+  .sc-meta { font-size: 11px; color: var(--stone); margin-bottom: 8px; }
+  .sc-excerpt { font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+  .sc-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--cream-dark); }
+
+  /* Categories */
+  .cat-fe { background: #E8F0FE; color: #1A4A8B; }
+  .cat-doctrina { background: #F3E8FF; color: #5B2D8E; }
+  .cat-historia { background: #FEF9E7; color: #8B6E2A; }
+  .cat-arrepentimiento { background: #FDE8E6; color: #C0392B; }
+  .cat-reflexion { background: #E8F8F0; color: #1A6B3C; }
+  .cat-profecia { background: #FEF3E8; color: #C0710A; }
+
+  /* ── AI Analysis Panel ── */
+  .ai-panel {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+    border-radius: var(--radius);
+    padding: 20px;
+    color: var(--cream);
+    margin-top: 16px;
+  }
+  .ai-panel-header { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .ai-icon { font-size: 18px; }
+  .ai-title { font-size: 13px; font-weight: 600; color: var(--gold); letter-spacing: 0.5px; }
+  .ai-loading { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--stone-light); }
+  .ai-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); animation: pulse 1.2s infinite; }
+  .ai-dot:nth-child(2) { animation-delay: 0.2s; }
+  .ai-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+  .ai-result { font-size: 13px; line-height: 1.6; color: var(--cream); }
+  .ai-category-badge {
+    display: inline-block; padding: 4px 12px;
+    background: var(--gold); color: var(--navy);
+    font-size: 11px; font-weight: 700; border-radius: 20px;
+    margin: 8px 0; letter-spacing: 0.5px;
+  }
+
+  /* ── Schedule / Cronograma ── */
+  .schedule-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+  .schedule-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: var(--navy); }
+  .schedule-sub { font-size: 13px; color: var(--stone); margin-top: 2px; }
+
+  .rec-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 12px;
+    border-left: 4px solid var(--gold);
+    box-shadow: var(--shadow);
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: 16px;
+    align-items: center;
+  }
+  .rec-date { text-align: center; }
+  .rec-day { font-size: 24px; font-weight: 700; color: var(--navy); line-height: 1; }
+  .rec-month { font-size: 10px; font-weight: 600; color: var(--stone); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+  .rec-title { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+  .rec-detail { font-size: 12px; color: var(--stone); }
+  .rec-badge { font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px; }
+
+  /* ── Stats ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .stat-num { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--navy); line-height: 1; }
+  .stat-label { font-size: 11px; color: var(--stone); margin-top: 4px; letter-spacing: 0.5px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--cream-dark); margin-bottom: 20px; }
+  .tab {
+    padding: 10px 20px; font-size: 13px; font-weight: 500;
+    color: var(--stone); cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: all .15s;
+  }
+  .tab:hover { color: var(--navy); }
+  .tab.active { color: var(--navy); border-bottom-color: var(--gold); font-weight: 600; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--cream-dark);
+    border-radius: var(--radius);
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    margin-bottom: 16px;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--gold); background: #FFFCF3; }
+  .upload-icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-text { font-size: 14px; color: var(--stone); }
+  .upload-sub { font-size: 12px; color: var(--stone-light); margin-top: 4px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 2000;
+    background: var(--navy); color: var(--cream);
+    padding: 12px 20px; border-radius: var(--radius);
+    font-size: 13px; display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    transform: translateY(80px); opacity: 0;
+    transition: all .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast-icon { color: var(--gold); font-size: 16px; }
+
+  /* Section title */
+  .section-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+  .section-sub { font-size: 13px; color: var(--stone); margin-bottom: 20px; }
+
+  /* ── Dividers ── */
+  .divider { height: 1px; background: var(--cream-dark); margin: 20px 0; }
+
+  /* Tag list */
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: var(--cream-dark); color: var(--text-mid); font-weight: 500; }
+  
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--stone); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-text { font-size: 15px; margin-bottom: 4px; }
+  .empty-sub { font-size: 12px; }
+
+  #file-input { display: none; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-menorah">🕎</div>
+      <div class="logo-title">Freedom</div>
+      <div class="logo-sub">Centro de Enseñanza</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Navegación</div>
+      <a class="nav-item active" onclick="showView('calendar')" href="#">
+        <span class="nav-icon">📅</span> Calendario
+      </a>
+      <a class="nav-item" onclick="showView('sermons')" href="#">
+        <span class="nav-icon">📜</span> Prédicas
+      </a>
+      <a class="nav-item" onclick="showView('editor')" href="#">
+        <span class="nav-icon">✍️</span> Nueva Prédica
+      </a>
+      <a class="nav-item" onclick="showView('schedule')" href="#">
+        <span class="nav-icon">🗓️</span> Cronograma
+      </a>
+
+      <div class="nav-section-label" style="margin-top:12px;">Categorías</div>
+      <a class="nav-item" onclick="filterByCategory('Bases de la Fe')" href="#">
+        <span class="nav-icon">⚓</span> Bases de la Fe
+      </a>
+      <a class="nav-item" onclick="filterByCategory('Doctrina')" href="#">
+        <span class="nav-icon">📖</span> Doctrina
+      </a>
+      <a class="nav-item" onclick="filterByCategory('Historia')" href="#">
+        <span class="nav-icon">🏛️</span> Historia
+      </a>
+      <a class="nav-item" onclick="filterByCategory('Arrepentimiento')" href="#">
+        <span class="nav-icon">🕊️</span> Arrepentimiento
+      </a>
+      <a class="nav-item" onclick="filterByCategory('Reflexión')" href="#">
+        <span class="nav-icon">🌿</span> Reflexión
+      </a>
+      <a class="nav-item" onclick="filterByCategory('Profecía')" href="#">
+        <span class="nav-icon">✨</span> Profecía
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Calendario de Parashot</div>
+      <div class="topbar-right">
+        <button class="btn btn-outline btn-sm" onclick="showView('editor')">+ Nueva Prédica</button>
+        <button class="btn btn-gold btn-sm" onclick="showView('schedule')">📊 Cronograma</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- ── CALENDAR VIEW ── -->
+      <div class="view active" id="view-calendar">
+        <div class="calendar-header">
+          <div class="cal-nav">
+            <button class="btn btn-outline btn-icon" onclick="changeMonth(-1)">‹</button>
+            <div class="cal-month" id="cal-month-label"></div>
+            <button class="btn btn-outline btn-icon" onclick="changeMonth(1)">›</button>
+          </div>
+          <div style="font-size:12px;color:var(--stone);">🔵 = Prédica registrada</div>
+        </div>
+        <div class="calendar-grid" id="cal-grid"></div>
+      </div>
+
+      <!-- ── SERMONS VIEW ── -->
+      <div class="view" id="view-sermons">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <div>
+            <div class="section-title">Registro de Prédicas</div>
+            <div class="section-sub" id="sermons-subtitle">Todas las categorías</div>
+          </div>
+          <input class="field-input" style="width:200px;" placeholder="🔍 Buscar prédica..." oninput="searchSermons(this.value)">
+        </div>
+        <div class="stats-row" id="stats-row"></div>
+        <div class="sermons-grid" id="sermons-grid"></div>
+      </div>
+
+      <!-- ── EDITOR VIEW ── -->
+      <div class="view" id="view-editor">
+        <div class="section-title">Nueva Prédica</div>
+        <div class="section-sub">Crea o sube tu prédica — la IA la analizará y la categorizará automáticamente</div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab(this,'tab-write')">✍️ Escribir</div>
+          <div class="tab" onclick="switchTab(this,'tab-upload')">📂 Subir Documento</div>
+        </div>
+
+        <div class="tab-panel active" id="tab-write">
+          <div class="doc-meta">
+            <div class="field-group">
+              <label class="field-label">Título de la Prédica</label>
+              <input class="field-input" id="sermon-title" placeholder="Ej: La fe que mueve montañas">
+            </div>
+            <div class="field-group">
+              <label class="field-label">Fecha</label>
+              <input class="field-input" type="date" id="sermon-date">
+            </div>
+            <div class="field-group">
+              <label class="field-label">Parasha del Shabat</label>
+              <select class="field-input" id="sermon-parasha">
+                <option value="">— Seleccionar —</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="editor-toolbar">
+            <button class="toolbar-btn" onclick="execCmd('bold')"><b>N</b></button>
+            <button class="toolbar-btn" onclick="execCmd('italic')"><i>K</i></button>
+            <button class="toolbar-btn" onclick="execCmd('underline')"><u>S</u></button>
+            <div class="toolbar-sep"></div>
+            <button class="toolbar-btn" onclick="execCmd('insertUnorderedList')">• Lista</button>
+            <button class="toolbar-btn" onclick="execCmd('insertOrderedList')">1. Lista</button>
+            <div class="toolbar-sep"></div>
+            <button class="toolbar-btn" onclick="execCmd('formatBlock','h2')">Título</button>
+            <button class="toolbar-btn" onclick="execCmd('formatBlock','p')">Párrafo</button>
+            <div class="toolbar-sep"></div>
+            <button class="toolbar-btn" onclick="execCmd('removeFormat')">Limpiar</button>
+          </div>
+          <div class="editor-area" id="editor-area" contenteditable="true"
+               data-placeholder="Comienza a escribir tu prédica aquí... Puedes incluir textos bíblicos, puntos principales, ilustraciones y conclusión."></div>
+        </div>
+
+        <div class="tab-panel" id="tab-upload">
+          <div class="upload-zone" onclick="document.getElementById('file-input').click()"
+               ondragover="this.classList.add('drag');event.preventDefault()"
+               ondragleave="this.classList.remove('drag')"
+               ondrop="handleDrop(event)">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">Arrastra un archivo o haz clic para seleccionar</div>
+            <div class="upload-sub">Soporta .txt, .pdf, .docx • máx 10MB</div>
+          </div>
+          <input type="file" id="file-input" accept=".txt,.pdf,.docx" onchange="handleFileUpload(event)">
+          <div id="upload-preview" style="display:none;">
+            <div class="field-group" style="margin-bottom:12px;">
+              <label class="field-label">Título (editar si es necesario)</label>
+              <input class="field-input" id="upload-title">
+            </div>
+            <div class="field-group">
+              <label class="field-label">Contenido extraído</label>
+              <textarea class="field-input" id="upload-content" rows="8" style="resize:vertical;font-family:'EB Garamond',serif;font-size:15px;line-height:1.6;"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button class="btn btn-gold" onclick="analyzeAndSave()">✨ Analizar y Guardar</button>
+          <button class="btn btn-outline" onclick="analyzeOnly()">🔍 Solo Analizar</button>
+        </div>
+
+        <!-- AI Panel -->
+        <div class="ai-panel" id="ai-panel" style="display:none;">
+          <div class="ai-panel-header">
+            <span class="ai-icon">🤖</span>
+            <span class="ai-title">Análisis de IA — Iglesia Freedom</span>
+          </div>
+          <div id="ai-content">
+            <div class="ai-loading">
+              <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+              <span style="margin-left:4px;">Analizando tu prédica...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SCHEDULE VIEW ── -->
+      <div class="view" id="view-schedule">
+        <div class="schedule-header">
+          <div>
+            <div class="schedule-title">Cronograma de Enseñanza</div>
+            <div class="schedule-sub">Recomendaciones basadas en tu historial de prédicas</div>
+          </div>
+          <button class="btn btn-gold" onclick="generateSchedule()">🔄 Regenerar Plan</button>
+        </div>
+        <div id="schedule-content"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Parasha Detail -->
+<div class="modal-overlay" id="parasha-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-eyebrow" id="modal-eyebrow"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="modal-title" id="modal-title"></div>
+          <div class="modal-hebrew" id="modal-hebrew"></div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="readings-list" id="modal-readings"></div>
+    </div>
+    <div class="modal-body">
+      <div class="synopsis-text" id="modal-synopsis"></div>
+      <div class="messianic-section">
+        <div class="messianic-title">✡ Conexiones Mesiánicas</div>
+        <div class="messianic-text" id="modal-messianic"></div>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-gold" onclick="closeModal();showView('editor')">📝 Crear Prédica de Esta Porción</button>
+        <button class="btn btn-outline" onclick="closeModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Sermon Detail -->
+<div class="modal-overlay" id="sermon-modal" onclick="if(event.target===this)closeSermonModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-eyebrow" id="sm-eyebrow"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="modal-title" id="sm-title"></div>
+          <div style="font-size:12px;color:var(--stone);margin-top:4px;" id="sm-meta"></div>
+        </div>
+        <button class="modal-close" onclick="closeSermonModal()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="synopsis-text" id="sm-content"></div>
+      <div class="messianic-section" id="sm-ai-analysis" style="background:#FFF9EC;border-color:var(--gold);">
+        <div class="messianic-title" style="color:var(--gold-dim);">🤖 Análisis de IA</div>
+        <div id="sm-ai-text" style="font-size:13px;line-height:1.6;color:var(--text-mid);"></div>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline btn-danger btn-sm" onclick="deleteCurrentSermon()">🗑 Eliminar</button>
+        <button class="btn btn-outline btn-sm" onclick="closeSermonModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"><span class="toast-icon">✓</span><span id="toast-text"></span></div>
+
+<script>
+// ── DATA ──
+const PARASHOT = [
+  { name:'Bereshit', hebrew:'בְּרֵאשִׁית', torah:'Gén 1:1–6:8', haftara:'Is 42:5–43:10', brit:'Jn 1:1–14', synopsis:'En el principio, Elohim crea los cielos y la tierra. Adán y Chavá son formados y colocados en el Gan Edén. La serpiente engaña a Chavá y ambos caen, trayendo la muerte y la separación de Elohim. Caín mata a Abel, y la humanidad comienza su descenso espiritual.', messianic:'Génesis 1:1 ("En el principio") refleja Juan 1:1, donde Yeshúa es el Davar/Logos por quien todo fue creado. La promesa de Génesis 3:15 —enemistad entre la simiente de la mujer y la serpiente— es la primera profecía mesiánica (Proto-Evangelio). La ofrenda de Abel aceptada prefigura el sacrificio de sangre requerido por Dios, cumplido en el Mesías.'},
+  { name:'Noach', hebrew:'נֹחַ', torah:'Gén 6:9–11:32', haftara:'Is 54:1–55:5', brit:'Mt 24:36–44', synopsis:'Noé, hombre justo, es llamado por Dios a construir el arca ante el diluvio inminente. La humanidad corrompida es juzgada, pero Noé y su familia son salvados junto a los animales. Tras el diluvio, Dios establece el Pacto Noáico con el arco iris como señal. La soberbia humana culmina en Babel.', messianic:'El arca es un tipo del Mesías: solo a través de ella se alcanza la salvación. El pacto noáico prefigura la alianza eterna que Yeshúa sella con su sangre. El juicio de las aguas prefigura el bautismo como inmersión en muerte y resurrección (1 Ped 3:18–22).'},
+  { name:'Lech Lecha', hebrew:'לֶךְ-לְךָ', torah:'Gén 12:1–17:27', haftara:'Is 40:27–41:16', brit:'Rom 4:1–25', synopsis:'Abram recibe el llamado de salir de su tierra hacia una tierra desconocida, con la promesa de convertirse en gran nación. Se establece el Pacto Abrahámico. Abram y Sarai enfrentan pruebas en Egipto. Dios reafirma el pacto, cambia sus nombres a Abraham y Sara, e instituye la circuncisión como señal.', messianic:'Abraham es justificado por fe antes de ser circuncidado (Rom 4), siendo padre de todos los creyentes. La promesa "en ti serán benditas todas las naciones" (Gál 3:8) es el Evangelio anticipado. El encuentro con Melquisedec (rey de Salem, sacerdote del Dios Altísimo) prefigura el sacerdocio eterno de Yeshúa.'},
+  { name:'Vayera', hebrew:'וַיֵּרָא', torah:'Gén 18:1–22:24', haftara:'2 Rey 4:1–37', brit:'Lc 17:26–37', synopsis:'Tres mensajeros anuncian a Abraham el nacimiento de Isaac. La intercesión de Abraham por Sodoma revela la justicia de Dios. Lot es rescatado antes de la destrucción. Sara concibe y da a luz a Isaac. La prueba suprema llega: el akedah, donde Abraham es llamado a sacrificar a su único hijo.', messianic:'El Akedah (la ligadura de Isaac) en el Monte Moriá es el tipo más claro del sacrificio de Yeshúa: el hijo amado, único, llevado al monte con la madera sobre sus hombros. El carnero provisto en su lugar anticipa la provisión de Dios en el Mesías. "Dios proveerá el cordero" (Gén 22:8) — profecía directa.'},
+  { name:'Chayei Sara', hebrew:'חַיֵּי שָׂרָה', torah:'Gén 23:1–25:18', haftara:'1 Rey 1:1–31', brit:'Mt 8:19–22', synopsis:'Sara muere y Abraham adquiere la cueva de Macpela como herencia eterna. Luego envía a su siervo Eliezer a buscar esposa para Isaac entre su parentela. Rebeca es elegida y parte con fe hacia el encuentro. El matrimonio de Isaac y Rebeca consuela a Isaac tras la pérdida de su madre.', messianic:'Eliezer (cuyo nombre significa "mi Dios es ayuda") tipifica al Espíritu Santo enviado a buscar la novia para el Hijo. Rebeca que parte sin verlo, por fe, refleja a la Iglesia/Kehila que se une al Mesías sin haberlo visto físicamente. El siervo que da regalos prefigura los dones del Espíritu.'},
+  { name:'Toldot', hebrew:'תּוֹלְדֹת', torah:'Gén 25:19–28:9', haftara:'Mal 1:1–2:7', brit:'Rom 9:6–16', synopsis:'Isaac y Rebeca reciben a los mellizos Esaú y Jacob. Desde el vientre materno pelean, y Dios declara que el mayor servirá al menor. Esaú vende su primogenitura por un guiso de lentejas. Jacob, guiado por Rebeca, obtiene la bendición del primogénito ante el ciego Isaac. Esaú jura vengarse.', messianic:'La elección de Jacob sobre Esaú ilustra la soberanía divina en la elección (Rom 9:10–13). La bendición dada al segundo hijo prefigura cómo el "segundo Adán" (Yeshúa) hereda lo que el primero perdió. Pablo utiliza este pasaje para explicar la elección de gracia.'},
+  { name:'Vayetze', hebrew:'וַיֵּצֵא', torah:'Gén 28:10–32:2', haftara:'Os 12:13–14:10', brit:'Jn 1:43–51', synopsis:'Jacob huye a Mesopotamia. En el camino tiene la visión de la escalera que une cielo y tierra, con ángeles ascendiendo y descendiendo. Trabaja catorce años por Raquel. Sus hijos con Lea, Bilha, Zilpá y Raquel forman las doce tribus. Finalmente parte en secreto, y Dios lo protege de Labán.', messianic:'La escalera de Jacob (Bet-El: "casa de Dios") es citada por Yeshúa en Juan 1:51: Él mismo es la escalera entre el cielo y la tierra. La piedra ungida en Bet-El prefigura al Mesías como piedra angular. El pacto de Dios que confirma la promesa a Jacob extiende el pacto abrahámico.'},
+  { name:'Vayishlach', hebrew:'וַיִּשְׁלַח', torah:'Gén 32:3–36:43', haftara:'Abd 1–21', brit:'Ap 7:1–12', synopsis:'Jacob lucha con el ángel toda la noche y recibe el nombre Israel: "el que lucha con Dios". El encuentro de reconciliación con Esaú. Dina es deshonrada en Siquem. Jacob regresa a Bet-El y renueva su pacto. Raquel muere dando a luz a Benjamín. Isaac muere y es sepultado.', messianic:'La lucha de Jacob con el "hombre" (Ángel del SEÑOR, manifestación pre-encarnada del Mesías) revela la lucha espiritual en la vida del creyente. El cambio de nombre a Israel anticipa la transformación que el Mesías produce en sus seguidores. La herida en el muslo señala el costo de la bendición.'},
+  { name:'Vayeshev', hebrew:'וַיֵּשֶׁב', torah:'Gén 37:1–40:23', haftara:'Am 2:6–3:8', brit:'Mt 1:1–6', synopsis:'José es vendido como esclavo por sus hermanos envidiosos. Llega a Egipto y sirve en la casa de Potifar. La esposa de Potifar lo acusa falsamente y José es encarcelado. En la cárcel interpreta los sueños del copero y el panadero. El copero olvida su promesa de mencionar a José ante Faraón.', messianic:'José es el tipo mesiánico más elaborado del Génesis: amado de su padre, rechazado por sus hermanos (que representan a Israel), vendido por 20 piezas de plata, muerto simbólicamente, exaltado a segunda posición, y finalmente revelado como salvador. Yeshúa cumple cada paralelo perfectamente.'},
+  { name:'Miketz', hebrew:'מִקֵּץ', torah:'Gén 41:1–44:17', haftara:'1 Rey 3:15–4:1', brit:'Hch 7:9–16', synopsis:'Faraón sueña con vacas y espigas. José es sacado de la cárcel para interpretar: siete años de abundancia seguidos de siete de hambre. Faraón lo exalta como virrey de Egipto. Durante el hambre, los hermanos de José vienen a comprar grano sin reconocerlo. José los prueba con diversas pruebas.', messianic:'José exaltado sobre toda la tierra de Egipto tras el sufrimiento tipifica la exaltación de Yeshúa después de la crucifixión (Fil 2:9–11). Que todos los pueblos vengan a José por provisión refleja la universalidad del Evangelio. La segunda visita de los hermanos (cuando lo reconocen) prefigura el día cuando Israel reconocerá al Mesías.'},
+  { name:'Vayigash', hebrew:'וַיִּגַּשׁ', torah:'Gén 44:18–47:27', haftara:'Ez 37:15–28', brit:'Lc 6:27–36', synopsis:'Judá intercede noblemente por Benjamín, ofreciéndose como sustituto. José no puede contenerse más y se revela a sus hermanos con llanto. Los perdona y los envía a traer a su padre. Jacob y toda su familia (70 personas) descienden a Egipto. Faraón los establece en la tierra de Gosén.', messianic:'La revelación de José a sus hermanos es uno de los tipos más emotivos del Mesías revelándose a Israel: José llora, perdona sin reproche, y la reconciliación restaura la familia. Ez 37:15–28 (haftara) habla de la reunificación de Efraín y Judá bajo un solo rey davídico — cumplimiento mesiánico final.'},
+  { name:'Vayechi', hebrew:'וַיְחִי', torah:'Gén 47:28–50:26', haftara:'1 Rey 2:1–12', brit:'Heb 11:21–22', synopsis:'Jacob bendice a sus hijos con profecías para los últimos días. A José le da una doble porción a través de Efraín y Manasés. A Judá le declara que el cetro no se apartará de él hasta Shiloh. Jacob muere y es embalsamado. José perdona nuevamente a sus hermanos y muere, pidiendo que lleven sus huesos a la Tierra Prometida.', messianic:'La profecía de Judá (Gén 49:10) —el cetro no se apartará hasta Shiloh— es una de las más directas sobre el Mesías como rey de la tribu de Judá. "Shiloh" interpretado como "aquel a quien pertenece" o "el pacificador". Los huesos de José que serán llevados a la tierra prometida tipifican la resurrección y la herencia.'},
+  { name:'Shemot', hebrew:'שְׁמוֹת', torah:'Éx 1:1–6:1', haftara:'Is 27:6–28:13', brit:'Hch 7:17–35', synopsis:'Israel en Egipto crece y un nuevo faraón los esclaviza. Moisés nace y es salvado por la hija de Faraón. Huye a Madián tras matar a un egipcio. En Horeb, Dios se le aparece en la zarza ardiente y lo llama a liberar a Israel. Moisés regresa a Egipto. Su primera presentación ante Faraón fracasa.', messianic:'Moisés como liberador tipifica al Mesías: rechazado primero por su propio pueblo (como Yeshúa en Nazaret), pero enviado de vuelta como redentor. La zarza que arde sin consumirse refleja la presencia del Ángel del SEÑOR (Yeshúa pre-encarnado). El nombre "YO SOY EL QUE SOY" (Éx 3:14) es citado por Yeshúa en Juan 8:58.'},
+  { name:'Vaera', hebrew:'וָאֵרָא', torah:'Éx 6:2–9:35', haftara:'Ez 28:25–29:21', brit:'Ap 7:14–8:6', synopsis:'Dios se revela a Moisés como YHWH (el nombre del pacto) y reafirma su promesa de redención en cuatro expresiones. Las primeras siete plagas caen sobre Egipto: agua convertida en sangre, ranas, piojos, moscas, muerte del ganado, úlceras y granizo. Faraón endurece su corazón cada vez más.', messianic:'Las plagas son juicios divinos sobre los dioses de Egipto, mostrando la supremacía de YHWH. El libro del Apocalipsis recapitula plagas similares en el juicio final. El endurecimiento del corazón de Faraón ilustra la soberanía divina en el juicio (Rom 9:17).'},
+  { name:'Bo', hebrew:'בֹּא', torah:'Éx 10:1–13:16', haftara:'Jer 46:13–28', brit:'Jn 19:31–37', synopsis:'Las últimas tres plagas: langostas, tinieblas y la muerte de los primogénitos. La institución de la Pascua (Pésaj): el cordero sin mancha, la sangre en los dinteles, la noche de vigilia. Israel sale de Egipto —el Éxodo— después de 430 años de esclavitud. La santificación de los primogénitos.', messianic:'Esta es quizás la parasha con mayor contenido mesiánico: el Cordero Pascual sin defecto, cuya sangre protege de la muerte, es el tipo más explícito de Yeshúa como "el Cordero de Dios que quita el pecado del mundo" (Jn 1:29). Juan 19:36 cita Éx 12:46 al no romper los huesos de Yeshúa.'},
+  { name:'Beshalach', hebrew:'בְּשַׁלַּח', torah:'Éx 13:17–17:16', haftara:'Jue 4:4–5:31', brit:'Ap 15:1–4', synopsis:'Israel sale de Egipto guiado por la columna de nube y fuego. Atrapados entre el mar y el ejército de Faraón, Dios abre el Mar de Juncos. Israel cruza en seco y el ejército egipcio es destruido. El Cántico de Moisés. La provisión milagrosa del maná y el agua. La batalla con Amalec.', messianic:'El cruce del Mar de Juncos es tipología bautismal (1 Cor 10:1–4): Israel sumergida en el mar como bautismo de salvación. El maná del cielo prefigura a Yeshúa como "el pan que descendió del cielo" (Jn 6:31–35). La roca que da agua tipifica al Mesías como fuente de agua viva.'},
+  { name:'Yitró', hebrew:'יִתְרוֹ', torah:'Éx 18:1–20:23', haftara:'Is 6:1–7:6', brit:'Mt 5:17–30', synopsis:'Jetro, suegro de Moisés, viene al desierto y aconseja establecer un sistema judicial delegado. Israel llega al Monte Sinaí. Después de tres días de preparación, Dios desciende en fuego y trueno y pronuncia los Diez Mandamientos. El pueblo aterrorizado pide que Moisés interceda. Regulaciones sobre el altar.', messianic:'Yeshúa en el Sermón del Monte (haftara Mt 5:17–30) no vino a abolir la Torah sino a cumplirla e interpretarla en su profundidad espiritual. La teofanía en el Sinaí —nube, fuego, trompeta, voz— anticipa la Segunda Venida (Ap 8:5). Moisés como mediador del primer pacto tipifica a Yeshúa como mediador del nuevo y mejor pacto (Heb 8:6).'},
+];
+
+const CATEGORIES = {
+  'Bases de la Fe': { color: 'cat-fe', icon: '⚓' },
+  'Doctrina': { color: 'cat-doctrina', icon: '📖' },
+  'Historia': { color: 'cat-historia', icon: '🏛️' },
+  'Arrepentimiento': { color: 'cat-arrepentimiento', icon: '🕊️' },
+  'Reflexión': { color: 'cat-reflexion', icon: '🌿' },
+  'Profecía': { color: 'cat-profecia', icon: '✨' },
+};
+
+// Demo sermons
+let SERMONS = [
+  {
+    id: 1, title: 'La Fe Que Obra Por Amor',
+    date: '2026-06-14', parasha: 'Shelach Lecha',
+    category: 'Bases de la Fe',
+    content: 'En esta prédica exploramos Números 13–15 y el fracaso de los espías. La raíz hebrea תור (tur) significa explorar, reconocer. Los espías vieron gigantes pero Kaleb y Josué vieron a Dios. La fe genuina no niega los obstáculos, los relativiza ante la grandeza de Elohim. Aplicación: ¿Qué "gigantes" estás mirando en tu vida? La fe opera cuando decidimos mirar a Dios en lugar de al problema.',
+    aiAnalysis: 'Categoría principal: Bases de la Fe. Esta prédica toca el corazón de la vida de fe: la perspectiva. Basada en narrativa histórica bíblica con aplicación personal profunda. Recomendación: complementar con una enseñanza sobre las consecuencias del pecado de murmuración (Arrepentimiento) para equilibrar el ciclo.',
+    tags: ['fe', 'confianza', 'Números', 'espías', 'desierto']
+  },
+  {
+    id: 2, title: 'La Pureza del Corazón y la Lashon Ha-Ra',
+    date: '2026-05-17', parasha: 'Tazria-Metzora',
+    category: 'Doctrina',
+    content: 'Estudiamos el concepto de tzara\'at (lepra espiritual) como consecuencia del lashon ha-ra (mala lengua). En la tradición rabínica y mesiánica, la enfermedad de Miriam por hablar mal de Moisés ilustra las consecuencias espirituales de la calumnia. Yeshúa enseñó que de la abundancia del corazón habla la boca. La pureza ritual exterior refleja la realidad interior.',
+    aiAnalysis: 'Categoría principal: Doctrina. Prédica de alto contenido doctrinal sobre pureza, lenguaje y carácter. Conecta Torah con enseñanza de Yeshúa efectivamente. Recomendación: agregar una dimensión de Reflexión personal para el próximo Shabbat.',
+    tags: ['pureza', 'lenguaje', 'Torah', 'doctrina', 'lashon ha-ra']
+  },
+  {
+    id: 3, title: 'Shavuot: El Espíritu y la Torah',
+    date: '2026-06-01', parasha: 'Shavuot',
+    category: 'Historia',
+    content: 'El debate del omer: ¿cuándo comienza el conteo? Exploración de las tradiciones farisea y saducea. Shavuot como el día que Dios dio la Torah en el Sinaí y el día que dio el Ruach HaKodesh en Pentecostés. La Torah escrita y la Torah escrita en el corazón (Jer 31:31–34). La continuidad entre ambos pactos. Conexión con Rut.',
+    aiAnalysis: 'Categoría principal: Historia. Excelente enseñanza histórico-teológica sobre las fiestas. Conecta el calendario hebreo con el cumplimiento neotestamentario. Recomendación: profundizar en aplicación práctica (Reflexión) en próxima prédica.',
+    tags: ['Shavuot', 'Pentecostés', 'Torah', 'fiestas', 'historia']
+  },
+  {
+    id: 4, title: 'Ansiedad y Renovación de la Mente',
+    date: '2026-05-31', parasha: 'Beha\'alotcha',
+    category: 'Reflexión',
+    content: 'Basado en Job y Romanos 12:2. El overthinking como trampa espiritual. Job pregunta desde la angustia pero Dios responde desde la grandeza de la creación. La renovación de la mente (metamorphosis) es un proceso continuo, no una experiencia puntual. Práctica de la meditación en Torah. El Shabbat como disciplina de descanso cognitivo.',
+    aiAnalysis: 'Categoría principal: Reflexión. Prédica pastoralmente muy necesaria sobre salud mental espiritual. Conecta narrativa bíblica con psicología espiritual. El tema es recurrente en la congregación. Recomendación: agregar herramientas prácticas en la próxima entrega.',
+    tags: ['ansiedad', 'mente', 'descanso', 'Job', 'Romanos', 'Shabbat']
+  },
+];
+
+let currentMonth = new Date().getMonth();
+let currentYear = new Date().getFullYear();
+let activeCategory = null;
+let currentSermonId = null;
+
+// ── Calendar ──
+function buildCalendar() {
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('cal-month-label').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+  const grid = document.getElementById('cal-grid');
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const today = new Date();
+
+  grid.innerHTML = days.map(d => `<div class="cal-day-label">${d}</div>`).join('');
+
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+  // Empty cells
+  for (let i = 0; i < firstDay; i++) {
+    grid.innerHTML += `<div class="cal-day empty"></div>`;
+  }
+
+  // Assign parashot to Shabbatot (Saturdays)
+  let parashaIndex = getStartParasha();
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(currentYear, currentMonth, d);
+    const isToday = date.toDateString() === today.toDateString();
+    const isSat = date.getDay() === 6;
+    const hasSermon = SERMONS.some(s => s.date === `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+
+    let parashaChip = '';
+    let parashaData = null;
+    if (isSat) {
+      parashaData = PARASHOT[parashaIndex % PARASHOT.length];
+      parashaIndex++;
+      parashaChip = `<div class="parasha-chip">${parashaData.name}</div><div class="parasha-hebrew">${parashaData.hebrew}</div>`;
+    }
+
+    const pClick = parashaData ? `openParasha(${PARASHOT.indexOf(parashaData)})` : '';
+
+    grid.innerHTML += `
+      <div class="cal-day ${isToday?'today':''} ${parashaData?'has-parasha':''}" onclick="${pClick}">
+        <div class="day-num ${isToday?'today-num':''}">${d}</div>
+        ${parashaChip}
+        ${hasSermon ? '<div style="margin-top:4px;"><span class="sermon-dot"></span><span style="font-size:9px;color:var(--stone);">prédica</span></div>' : ''}
+      </div>`;
+  }
+}
+
+function getStartParasha() {
+  // Approximate: Jan 2026 = Shemot
+  const base = new Date(2026, 0, 3);
+  const now = new Date(currentYear, currentMonth, 1);
+  const weeks = Math.round((now - base) / (7 * 86400000));
+  return Math.max(0, weeks) % PARASHOT.length;
+}
+
+function changeMonth(dir) {
+  currentMonth += dir;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  buildCalendar();
+}
+
+function openParasha(index) {
+  const p = PARASHOT[index];
+  document.getElementById('modal-eyebrow').textContent = `Parasha ${index + 1} de ${PARASHOT.length}`;
+  document.getElementById('modal-title').textContent = p.name;
+  document.getElementById('modal-hebrew').textContent = p.hebrew;
+  document.getElementById('modal-synopsis').textContent = p.synopsis;
+  document.getElementById('modal-messianic').textContent = p.messianic;
+  document.getElementById('modal-readings').innerHTML = `
+    <div class="reading-row"><span class="reading-label">Torah:</span><span class="reading-ref">${p.torah}</span></div>
+    <div class="reading-row"><span class="reading-label">Haftara:</span><span class="reading-ref">${p.haftara}</span></div>
+    <div class="reading-row"><span class="reading-label">Brit Jad.:</span><span class="reading-ref">${p.brit}</span></div>
+  `;
+  document.getElementById('parasha-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('parasha-modal').classList.remove('open');
+}
+
+// ── Sermons ──
+function renderSermons(filter = '') {
+  const grid = document.getElementById('sermons-grid');
+  let list = SERMONS.filter(s =>
+    (!activeCategory || s.category === activeCategory) &&
+    (!filter || s.title.toLowerCase().includes(filter.toLowerCase()) || s.content.toLowerCase().includes(filter.toLowerCase()))
+  );
+
+  // Stats
+  const stats = document.getElementById('stats-row');
+  const counts = {};
+  SERMONS.forEach(s => counts[s.category] = (counts[s.category]||0)+1);
+  stats.innerHTML = `
+    <div class="stat-card"><div class="stat-num">${SERMONS.length}</div><div class="stat-label">Prédicas Total</div></div>
+    <div class="stat-card"><div class="stat-num">${Object.keys(counts).length}</div><div class="stat-label">Categorías</div></div>
+    <div class="stat-card"><div class="stat-num">${getStreakMonths()}</div><div class="stat-label">Meses Activos</div></div>
+    <div class="stat-card"><div class="stat-num">${getMostUsedCategory()}</div><div class="stat-label">Cat. Principal</div></div>
+  `;
+
+  if (list.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">📜</div><div class="empty-text">No hay prédicas aún</div><div class="empty-sub">Crea tu primera prédica usando el editor</div></div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(s => {
+    const cat = CATEGORIES[s.category] || { color:'', icon:'📌' };
+    return `
+    <div class="sermon-card" onclick="openSermon(${s.id})">
+      <span class="sc-category ${cat.color}">${cat.icon} ${s.category}</span>
+      <div class="sc-title">${s.title}</div>
+      <div class="sc-meta">📅 ${formatDate(s.date)} · ${s.parasha}</div>
+      <div class="sc-excerpt">${s.content.substring(0,120)}...</div>
+      <div class="sc-footer">
+        <div class="tag-list">${(s.tags||[]).slice(0,3).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openSermon(id) {
+  const s = SERMONS.find(x => x.id === id);
+  if (!s) return;
+  currentSermonId = id;
+  const cat = CATEGORIES[s.category] || { color:'', icon:'📌' };
+  document.getElementById('sm-eyebrow').innerHTML = `<span class="sc-category ${cat.color}" style="font-size:11px;">${cat.icon} ${s.category}</span>`;
+  document.getElementById('sm-title').textContent = s.title;
+  document.getElementById('sm-meta').textContent = `📅 ${formatDate(s.date)} · ${s.parasha}`;
+  document.getElementById('sm-content').textContent = s.content;
+  document.getElementById('sm-ai-text').textContent = s.aiAnalysis;
+  document.getElementById('sermon-modal').classList.add('open');
+}
+
+function closeSermonModal() {
+  document.getElementById('sermon-modal').classList.remove('open');
+  currentSermonId = null;
+}
+
+function deleteCurrentSermon() {
+  if (!currentSermonId) return;
+  SERMONS = SERMONS.filter(s => s.id !== currentSermonId);
+  closeSermonModal();
+  renderSermons();
+  showToast('Prédica eliminada');
+}
+
+function searchSermons(val) { renderSermons(val); }
+function filterByCategory(cat) {
+  activeCategory = cat;
+  showView('sermons');
+  document.getElementById('sermons-subtitle').textContent = `Categoría: ${cat}`;
+}
+
+function getStreakMonths() {
+  const months = new Set(SERMONS.map(s => s.date.substring(0,7)));
+  return months.size;
+}
+function getMostUsedCategory() {
+  const counts = {};
+  SERMONS.forEach(s => counts[s.category] = (counts[s.category]||0)+1);
+  if (!Object.keys(counts).length) return '—';
+  const max = Object.entries(counts).sort((a,b) => b[1]-a[1])[0];
+  return (CATEGORIES[max[0]]?.icon || '') + ' ' + max[0].split(' ')[0];
+}
+
+// ── Editor ──
+function execCmd(cmd, val = null) {
+  document.getElementById('editor-area').focus();
+  document.execCommand(cmd, false, val);
+}
+
+function switchTab(el, panelId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    document.getElementById('upload-title').value = file.name.replace(/\.[^.]+$/, '');
+    document.getElementById('upload-content').value = text;
+    document.getElementById('upload-preview').style.display = 'block';
+    showToast('Archivo cargado correctamente');
+  };
+  reader.readAsText(file);
+}
+
+function getEditorContent() {
+  const activeTab = document.querySelector('.tab-panel.active');
+  if (activeTab.id === 'tab-write') {
+    return {
+      title: document.getElementById('sermon-title').value || 'Sin título',
+      content: document.getElementById('editor-area').innerText
+    };
+  } else {
+    return {
+      title: document.getElementById('upload-title').value || 'Sin título',
+      content: document.getElementById('upload-content').value
+    };
+  }
+}
+
+async function analyzeOnly() {
+  const { content } = getEditorContent();
+  if (!content.trim()) { showToast('Escribe o sube contenido primero'); return; }
+  await runAIAnalysis(content, false);
+}
+
+async function analyzeAndSave() {
+  const { title, content } = getEditorContent();
+  if (!content.trim()) { showToast('Escribe o sube contenido primero'); return; }
+  const result = await runAIAnalysis(content, true);
+  if (result) {
+    const sermon = {
+      id: Date.now(),
+      title,
+      date: document.getElementById('sermon-date').value || new Date().toISOString().split('T')[0],
+      parasha: document.getElementById('sermon-parasha').value || 'General',
+      category: result.category,
+      content,
+      aiAnalysis: result.analysis,
+      tags: result.tags || []
+    };
+    SERMONS.unshift(sermon);
+    showToast('✓ Prédica guardada y categorizada');
+    setTimeout(() => showView('sermons'), 1200);
+  }
+}
+
+async function runAIAnalysis(content, saving) {
+  const panel = document.getElementById('ai-panel');
+  const aiContent = document.getElementById('ai-content');
+  panel.style.display = 'block';
+  aiContent.innerHTML = `<div class="ai-loading"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span style="margin-left:4px;">Analizando tu prédica con IA...</span></div>`;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `Eres un asistente especializado en enseñanza bíblica mesiánica hebrea para Iglesia Freedom, una congregación de las Raíces Hebreas en Florida. Analiza el texto de predicación/enseñanza y responde ÚNICAMENTE en JSON con este formato exacto:
+{
+  "category": "una de: Bases de la Fe, Doctrina, Historia, Arrepentimiento, Reflexión, Profecía",
+  "confidence": "porcentaje 0-100",
+  "reasoning": "2-3 oraciones explicando por qué esta categoría",
+  "strengths": "fortalezas de la prédica en 1-2 oraciones",
+  "recommendations": "qué temas complementarios podrían tratarse en prédicas futuras",
+  "tags": ["array", "de", "5-8", "palabras", "clave"],
+  "analysis": "párrafo completo de análisis pastoral y teológico de 4-5 oraciones"
+}
+No incluyas nada fuera del JSON.`,
+        messages: [{ role: 'user', content: `Analiza esta prédica de Iglesia Freedom:\n\n${content.substring(0, 3000)}` }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content?.[0]?.text || '{}';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    const catInfo = CATEGORIES[parsed.category] || { color: '', icon: '📌' };
+    aiContent.innerHTML = `
+      <div class="ai-result">
+        <div style="margin-bottom:10px;">
+          <span style="font-size:12px;color:var(--stone-light);">Categoría detectada</span><br>
+          <span class="ai-category-badge">${catInfo.icon} ${parsed.category}</span>
+          <span style="font-size:12px;color:var(--stone-light);margin-left:8px;">Confianza: ${parsed.confidence}%</span>
+        </div>
+        <div style="margin-bottom:10px;"><strong style="color:var(--gold-light);font-size:12px;">ANÁLISIS:</strong><br>${parsed.analysis}</div>
+        <div style="margin-bottom:10px;"><strong style="color:var(--gold-light);font-size:12px;">FORTALEZAS:</strong><br>${parsed.strengths}</div>
+        <div><strong style="color:var(--gold-light);font-size:12px;">RECOMENDACIONES FUTURAS:</strong><br>${parsed.recommendations}</div>
+        <div class="tag-list" style="margin-top:10px;">${(parsed.tags||[]).map(t=>`<span style="background:rgba(255,255,255,0.1);color:var(--cream);font-size:10px;padding:2px 8px;border-radius:10px;">${t}</span>`).join('')}</div>
+      </div>`;
+
+    return parsed;
+  } catch (err) {
+    aiContent.innerHTML = `<div style="color:#F4A58A;">Error al conectar con IA. Verifica tu conexión.</div>`;
+    return null;
+  }
+}
+
+// ── Schedule ──
+async function generateSchedule() {
+  const content = document.getElementById('schedule-content');
+  content.innerHTML = `<div class="ai-panel"><div class="ai-loading"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span style="margin-left:4px;">Generando tu cronograma personalizado...</span></div></div>`;
+
+  const history = SERMONS.slice(0, 6).map(s => `- ${s.date}: "${s.title}" (${s.category})`).join('\n');
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `Eres un asistente de planificación pastoral para Iglesia Freedom, congregación de Raíces Hebreas Mesiánicas en Florida. 
+Genera un cronograma de 6 prédicas para las próximas semanas, considerando el historial y el calendario de parashot.
+Responde SOLO en JSON:
+{
+  "insight": "análisis breve del balance de categorías en el historial",
+  "sermons": [
+    {
+      "date": "YYYY-MM-DD (sábados próximos)",
+      "parasha": "nombre de la parasha",
+      "title": "título sugerido de la prédica",
+      "category": "categoría",
+      "rationale": "por qué se recomienda este tema ahora",
+      "keyText": "texto bíblico principal sugerido"
+    }
+  ]
+}`,
+        messages: [{ role: 'user', content: `Historial reciente de prédicas:\n${history}\n\nParashot próximas disponibles: Vayeshev, Miketz, Vayigash, Vayechi, Shemot, Vaera\n\nGenera el cronograma.` }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content?.[0]?.text || '{}';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+    content.innerHTML = `
+      <div class="ai-panel" style="margin-bottom:20px;">
+        <div class="ai-panel-header"><span class="ai-icon">🤖</span><span class="ai-title">Análisis de Balance de Enseñanza</span></div>
+        <div class="ai-result">${parsed.insight || ''}</div>
+      </div>
+      ${(parsed.sermons||[]).map(s => {
+        const d = new Date(s.date + 'T12:00:00');
+        const cat = CATEGORIES[s.category] || { color:'', icon:'📌' };
+        return `
+        <div class="rec-card">
+          <div class="rec-date">
+            <div class="rec-day">${d.getDate()}</div>
+            <div class="rec-month">${monthNames[d.getMonth()]}</div>
+          </div>
+          <div>
+            <div class="rec-title">${s.title}</div>
+            <div class="rec-detail">📖 ${s.parasha} · ${s.keyText}</div>
+            <div style="font-size:12px;color:var(--stone);margin-top:4px;">💡 ${s.rationale}</div>
+          </div>
+          <div><span class="rec-badge ${cat.color}">${cat.icon} ${s.category}</span></div>
+        </div>`;
+      }).join('')}`;
+  } catch (err) {
+    content.innerHTML = `<div class="ai-panel"><div style="color:#F4A58A;">Error al generar cronograma. Verifica tu conexión.</div></div>`;
+  }
+}
+
+// ── Utils ──
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+
+  const titles = { calendar: 'Calendario de Parashot', sermons: 'Registro de Prédicas', editor: 'Nueva Prédica', schedule: 'Cronograma de Enseñanza' };
+  document.getElementById('topbar-title').textContent = titles[name] || '';
+
+  if (name === 'sermons') { activeCategory = null; document.getElementById('sermons-subtitle').textContent = 'Todas las categorías'; renderSermons(); }
+  if (name === 'calendar') buildCalendar();
+  if (name === 'schedule') generateSchedule();
+
+  // Highlight nav
+  const navMap = { calendar: 0, sermons: 1, editor: 2, schedule: 3 };
+  const navItems = document.querySelectorAll('.nav-item');
+  if (navMap[name] !== undefined) navItems[navMap[name]].classList.add('active');
+}
+
+function formatDate(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-text').textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ── Init ──
+function init() {
+  buildCalendar();
+
+  // Set default date to today
+  document.getElementById('sermon-date').value = new Date().toISOString().split('T')[0];
+
+  // Populate parasha select
+  const sel = document.getElementById('sermon-parasha');
+  PARASHOT.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.name;
+    opt.textContent = `${p.name} — ${p.hebrew}`;
+    sel.appendChild(opt);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
