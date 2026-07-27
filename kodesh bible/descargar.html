@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KODESH Bible — Estudia la Palabra desde sus raíces hebreas</title>
+<meta name="description" content="KODESH Bible: Biblia en español con nombres hebreos restaurados, interlineal hebreo-griego con Strong's, ciclo de 52 porciones de la Torá y asistente de estudio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --parchment:#F5F0E6;
+  --parchment-deep:#EAE2D3;
+  --ink:#0E1219;
+  --ink-soft:#4A4F5C;
+  --night:#0E1219;
+  --night-soft:#1A212C;
+  --gold:#C9A84C;
+  --gold-deep:#8F7529;
+  --max:1080px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--parchment);
+  color:var(--ink);
+  font-family:'Assistant',system-ui,sans-serif;
+  font-size:18px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+h1,h2,h3{font-family:'Frank Ruhl Libre',Georgia,serif;font-weight:700;line-height:1.15;letter-spacing:-.01em}
+a{color:inherit}
+.eyebrow{
+  font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+  font-weight:700;color:var(--gold-deep);
+}
+.hero .eyebrow,.closing .eyebrow{color:var(--gold)}
+
+/* ---------- HERO ---------- */
+.hero{
+  position:relative;overflow:hidden;
+  background:var(--night);
+  color:var(--parchment);
+  padding:88px 0 76px;
+  border-bottom:1px solid rgba(201,168,76,.35);
+}
+.hero::after{ /* halo dorado tenue */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 18% -10%,rgba(201,168,76,.20),transparent 60%);
+}
+.hero .wrap{position:relative;z-index:1}
+.aleph{
+  font-family:'Frank Ruhl Libre',serif;
+  font-weight:900;
+  font-size:clamp(4.5rem,17vw,10rem);
+  line-height:1;
+  direction:rtl;
+  color:var(--gold);
+  text-shadow:0 0 60px rgba(201,168,76,.25);
+  opacity:0;transform:translateY(14px);
+  animation:rise .9s cubic-bezier(.2,.7,.3,1) forwards;
+}
+.aleph span{display:inline-block;opacity:0;animation:rise .7s cubic-bezier(.2,.7,.3,1) forwards}
+.aleph span:nth-child(1){animation-delay:.05s}
+.aleph span:nth-child(2){animation-delay:.20s}
+.aleph span:nth-child(3){animation-delay:.35s}
+.aleph span:nth-child(4){animation-delay:.50s}
+@keyframes rise{to{opacity:1;transform:translateY(0)}}
+.hero-rule{
+  width:64px;height:3px;background:var(--gold);margin:26px 0 22px;
+}
+.hero h1{
+  font-size:clamp(2.1rem,5.2vw,3.5rem);
+  max-width:16ch;color:#fff;
+}
+.hero p.lead{
+  margin-top:20px;max-width:52ch;
+  font-size:1.12rem;color:rgba(243,238,228,.86);font-weight:300;
+}
+.gloss{
+  margin-top:10px;font-size:.86rem;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(243,238,228,.6);font-weight:600;
+}
+
+/* ---------- BOTONES ---------- */
+.cta-row{display:flex;flex-wrap:wrap;gap:14px;margin-top:38px}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:15px 26px;border-radius:2px;
+  font-weight:700;font-size:1rem;text-decoration:none;
+  transition:transform .18s ease,box-shadow .18s ease,background .18s ease;
+}
+.btn:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.btn-primary{background:var(--gold);color:var(--night)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(201,168,76,.35)}
+.btn-ghost{border:1.5px solid rgba(201,168,76,.5);color:var(--gold)}
+.btn-ghost:hover{background:rgba(201,168,76,.12);transform:translateY(-2px)}
+.btn small{display:block;font-weight:400;font-size:.72rem;opacity:.75;letter-spacing:.04em}
+.btn .stack{display:flex;flex-direction:column;line-height:1.15;text-align:left}
+
+/* ---------- SECCIONES ---------- */
+section.band{padding:84px 0}
+.band-alt{background:var(--parchment-deep)}
+.sec-head{max-width:60ch;margin-bottom:44px}
+.sec-head h2{font-size:clamp(1.7rem,3.6vw,2.5rem);margin-top:12px}
+.sec-head p{margin-top:16px;color:var(--ink-soft)}
+
+/* historia */
+.story{display:grid;grid-template-columns:1fr;gap:28px;max-width:66ch}
+.story p{margin-bottom:20px;color:var(--ink-soft)}
+blockquote{
+  border-left:3px solid var(--gold-deep);
+  padding:6px 0 6px 22px;margin:34px 0;
+  font-family:'Frank Ruhl Libre',serif;font-size:1.35rem;font-style:italic;color:var(--ink);
+}
+blockquote cite{display:block;font-size:.8rem;font-style:normal;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-deep);margin-top:12px;font-family:'Assistant',sans-serif;font-weight:700}
+
+/* features */
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2px;background:rgba(21,24,31,.12)}
+.feature{background:var(--parchment);padding:32px 28px}
+.band-alt .feature{background:var(--parchment-deep)}
+.feature .heb{
+  font-family:'Frank Ruhl Libre',serif;direction:rtl;font-size:1.5rem;
+  color:var(--gold-deep);font-weight:700;
+}
+.feature h3{font-size:1.15rem;margin:10px 0 8px}
+.feature p{font-size:.95rem;color:var(--ink-soft)}
+
+/* galería */
+.showcase{background:var(--night);color:var(--parchment)}
+.showcase .sec-head h2{color:#fff}
+.showcase .sec-head p{color:rgba(245,240,230,.7)}
+.showcase .eyebrow{color:var(--gold)}
+.feature-shot{margin:0 auto 44px;max-width:620px}
+.feature-shot img{
+  width:100%;height:auto;display:block;
+  border-radius:6px;
+  box-shadow:0 30px 70px rgba(0,0,0,.55);
+}
+.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:28px 22px;max-width:820px;margin:0 auto}
+.shot{margin:0}
+.shot img{
+  width:100%;aspect-ratio:9/19.5;object-fit:cover;object-position:top;
+  display:block;border-radius:18px;
+  border:1px solid rgba(201,168,76,.3);
+  box-shadow:0 16px 40px rgba(0,0,0,.45);
+}
+.shot figcaption{
+  margin-top:12px;text-align:center;
+  font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:700;color:var(--gold);
+}
+
+/* cierre */
+.closing{background:var(--night);color:var(--parchment);text-align:center;padding:92px 0;border-top:1px solid rgba(201,168,76,.35)}
+.closing h2{font-size:clamp(1.8rem,4vw,2.7rem);max-width:20ch;margin:0 auto;color:#fff}
+.closing p{color:rgba(243,238,228,.7);margin:18px auto 0;max-width:46ch}
+.closing .cta-row{justify-content:center}
+footer{background:var(--night);color:rgba(243,238,228,.55);font-size:.85rem;padding:0 0 46px;text-align:center}
+footer a{color:rgba(243,238,228,.8)}
+footer .rule{height:1px;background:rgba(243,238,228,.15);margin:0 24px 26px}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+@media(max-width:640px){
+  body{font-size:17px}
+  section.band{padding:60px 0}
+  .hero{padding:60px 0 56px}
+  .btn{flex:1 1 100%;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Estudio bíblico hebreo-mesiánico</p>
+    <div class="aleph" aria-label="Kodesh en hebreo"><span>ק</span><span>ֹדֶ</span><span>שׁ</span><span></span></div>
+    <p class="gloss">Kódesh · apartado, santo, consagrado</p>
+    <div class="hero-rule"></div>
+    <h1>La Biblia, leída desde la raíz.</h1>
+    <p class="lead">Toda la Escritura en español con los nombres hebreos restaurados, interlineal hebreo-griego con números de Strong, el ciclo completo de las 52 porciones de la Torá y un asistente que te acompaña mientras estudias.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://apps.apple.com/app/kodesh-bible/id6781083106">
+        <span class="stack"><small>Descargar en el</small>App Store</span>
+      </a>
+      <a class="btn btn-ghost" href="https://kodeshbible.com">
+        <span class="stack"><small>Leer desde el navegador</small>kodeshbible.com</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HISTORIA ============ -->
+<section class="band">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">La historia detrás</p>
+      <h2>Empezó con una pregunta que no me dejaba en paz</h2>
+    </div>
+    <div class="story">
+      <p>Soy Nicolás Silva. Desde joven me apasiona el estudio de la Biblia y poder comprenderla desde la raíz. Cada vez que leía un pasaje me pasaba lo mismo: detrás de cada versículo había una palabra hebrea, un nombre, un contexto que la traducción no alcanzaba a cargar. Y esa capa —la raíz— casi nunca llegaba a quien estaba leyendo.</p>
+
+      <p>Para estudiar así tenía que abrir cinco herramientas distintas: una para el texto, otra para el interlineal, otra para los Strong's, otra para el calendario de las porciones. Si a mí me costaba, ¿qué esperanza tenía alguien que apenas empieza y solo habla español?</p>
+
+      <blockquote>
+        No quería otra app de versículos bonitos. Quería que cualquier persona pudiera abrir el texto y ver de dónde viene cada palabra.
+        <cite>Nicolás Silva · Creador de KODESH</cite>
+      </blockquote>
+
+      <p>Así nació KODESH. La palabra hebrea קֹדֶשׁ significa <em>apartado</em>: algo separado para un propósito. Eso es lo que quise construir — un lugar apartado para estudiar en serio, sin ruido, sin publicidad, sin que tengas que saber hebreo para acercarte al hebreo.</p>
+
+      <p>La construí capítulo por capítulo, en las noches, robándole horas al sueño. Hoy KODESH está en el App Store y en la web, y sigue creciendo con cada persona que la usa y me escribe. Si esta herramienta te ayuda a entender una sola palabra que antes se te escapaba, ya valió la pena.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QUÉ ENCUENTRAS ============ -->
+<section class="band band-alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Qué encuentras adentro</p>
+      <h2>Cuatro herramientas, un solo lugar</h2>
+    </div>
+    <div class="features">
+      <div class="feature">
+        <div class="heb">תַּנַ״ךְ</div>
+        <h3>Biblia completa en español</h3>
+        <p>Texto íntegro con los nombres hebreos restaurados, para que leas Yeshúa donde dice Yeshúa.</p>
+      </div>
+      <div class="feature">
+        <div class="heb">מִלָּה</div>
+        <h3>Interlineal hebreo-griego</h3>
+        <p>Palabra por palabra, con números de Strong's. Toca cualquier término y ve su raíz y su significado.</p>
+      </div>
+      <div class="feature">
+        <div class="heb">פָּרָשָׁה</div>
+        <h3>Ciclo de 52 porciones</h3>
+        <p>Las parashiyot de la Torá con sus fechas reales del calendario hebreo, semana por semana.</p>
+      </div>
+      <div class="feature">
+        <div class="heb">חָכְמָה</div>
+        <h3>Asistente de estudio</h3>
+        <p>Pregunta por el contexto, la cultura o el trasfondo de un pasaje y sigue estudiando sin salir del texto.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GALERÍA ============ -->
+<section class="band showcase">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Así se ve</p>
+      <h2>Palabra por palabra, en el idioma original</h2>
+      <p>Toca cualquier término del texto y se abre el interlineal: hebreo, transliteración, significado y su número de Strong's. Y eso es solo una de las pantallas.</p>
+    </div>
+    <figure class="feature-shot">
+      <img loading="lazy" src="img/kodesh-interlineal.jpg" alt="KODESH mostrando Génesis 1 con el interlineal hebreo palabra por palabra y números de Strong's">
+    </figure>
+    <div class="shots">
+      <figure class="shot"><img loading="lazy" src="img/1-Home.jpg" alt="Pantalla de inicio de KODESH con la promesa del día"><figcaption>Inicio · Promesa del día</figcaption></figure>
+      <figure class="shot"><img loading="lazy" src="img/2-Lectura_Biblica.jpg" alt="Génesis 1 en RVR60 con marcadores de colores"><figcaption>Lectura bíblica</figcaption></figure>
+      <figure class="shot"><img loading="lazy" src="img/3-Interlineal.jpg" alt="Interlineal hebreo con transliteración y números de Strong's"><figcaption>Interlineal</figcaption></figure>
+      <figure class="shot"><img loading="lazy" src="img/4-Salmos_de_Plegaria.jpg" alt="Salmos de Plegaria organizados por categoría"><figcaption>Salmos de Plegaria</figcaption></figure>
+      <figure class="shot"><img loading="lazy" src="img/5-Ciclo_52_Porciones.jpg" alt="Ciclo de estudio de las 52 porciones de la Torá"><figcaption>Ciclo de 52 porciones</figcaption></figure>
+      <figure class="shot"><img loading="lazy" src="img/6-Perfil_Progreso.jpg" alt="Perfil con progreso de lectura y calendario"><figcaption>Progreso de lectura</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CIERRE ============ -->
+<section class="closing">
+  <div class="wrap">
+    <p class="eyebrow">Empieza hoy</p>
+    <h2>Abre el texto. Busca la raíz.</h2>
+    <p>Descarga KODESH en tu iPhone o entra desde el navegador. Gratis para empezar.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://apps.apple.com/app/kodesh-bible/id6781083106">
+        <span class="stack"><small>Descargar en el</small>App Store</span>
+      </a>
+      <a class="btn btn-ghost" href="https://kodeshbible.com">
+        <span class="stack"><small>Abrir en el navegador</small>kodeshbible.com</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="rule"></div>
+  <div class="wrap">
+    KODESH Bible · Yajol Investment Group LLC · Saint Cloud, Florida<br>
+    <a href="https://kodeshbible.com/privacy">Privacidad</a> · <a href="https://kodeshbible.com/terms">Términos</a> · <a href="mailto:noreply@kodeshbible.com">Contacto</a>
+  </div>
+</footer>
+
+</body>
+</html>
