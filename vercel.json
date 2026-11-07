@@ -1,12 +1,33 @@
 {
   "rewrites": [
-    { "source": "/api/analyze", "destination": "/api/analyze.js" },
-    { "source": "/api/schedule", "destination": "/api/schedule.js" },
-    { "source": "/api/scribe-token", "destination": "/api/scribe-token.js" },
-    { "source": "/api/summarize", "destination": "/api/summarize.js" },
-    { "source": "/", "destination": "/index.html" }
+    {
+      "source": "/api/analyze",
+      "destination": "/api/analyze.js"
+    },
+    {
+      "source": "/api/schedule",
+      "destination": "/api/schedule.js"
+    },
+    {
+      "source": "/api/scribe-token",
+      "destination": "/api/scribe-token.js"
+    },
+    {
+      "source": "/api/summarize",
+      "destination": "/api/summarize.js"
+    },
+    {
+      "source": "/api/config",
+      "destination": "/api/config.js"
+    },
+    {
+      "source": "/",
+      "destination": "/index.html"
+    }
   ],
   "functions": {
-    "api/summarize.js": { "maxDuration": 300 }
+    "api/summarize.js": {
+      "maxDuration": 300
+    }
   }
 }

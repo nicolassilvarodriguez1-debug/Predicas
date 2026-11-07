@@ -933,7 +933,8 @@
     return {
       id: rec.id, mode: rec.mode, title: rec.title, date: rec.date, duration: rec.duration,
       segments: rec.segments, speakers: rec.speakers.map(s => ({ id: s.id, secs: s.secs, turns: s.turns, pct: s.pct, samples: s.samples })),
-      names: rec.names, teacher: rec.teacher, result: rec.result, savedAt: new Date().toISOString()
+      names: rec.names, teacher: rec.teacher, result: rec.result,
+      driveFileId: rec.driveFileId || null, driveLink: rec.driveLink || null, savedAt: new Date().toISOString()
     };
   }
   function saveRecording(silent) {
@@ -970,6 +971,180 @@
     };
     if (window.FreedomApp) window.FreedomApp.upsertSermon(sermon);
     toast('✓ Guardada en el registro de prédicas');
+  }
+
+  // ── Google Drive (para usar en NotebookLM) ────────────────────────
+  // Crea o actualiza un Google Doc por grabación dentro de una carpeta fija.
+  // Permiso "drive.file": la app solo ve los archivos que ella misma creó.
+  const DRIVE_FOLDER = 'Iglesia Freedom — Enseñanzas';
+  const DRIVE_FOLDER_REUNIONES = 'Iglesia Freedom — Reuniones';
+  const drive = { token: null, exp: 0, client: null, clientId: undefined };
+
+  async function getClientId() {
+    if (drive.clientId !== undefined) return drive.clientId;
+    try {
+      const r = await fetch('/api/config');
+      const c = await r.json();
+      drive.clientId = c.googleClientId || null;
+    } catch (_) { drive.clientId = null; }
+    return drive.clientId;
+  }
+  function loadGis() {
+    if (window.google && window.google.accounts && window.google.accounts.oauth2) return Promise.resolve();
+    return loadScript('https://accounts.google.com/gsi/client');
+  }
+  async function driveToken() {
+    if (drive.token && Date.now() < drive.exp - 60000) return drive.token;
+    const clientId = await getClientId();
+    if (!clientId) throw new Error('Falta configurar GOOGLE_CLIENT_ID en Vercel');
+    await loadGis();
+    return new Promise((resolve, reject) => {
+      if (!drive.client) {
+        drive.client = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/drive.file',
+          callback: () => {}
+        });
+      }
+      drive.client.callback = resp => {
+        if (resp.error) return reject(new Error(resp.error_description || resp.error));
+        drive.token = resp.access_token;
+        drive.exp = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
+        resolve(drive.token);
+      };
+      drive.client.error_callback = err => reject(new Error(err && err.type === 'popup_closed' ? 'Se cerró la ventana de Google' : 'Google no dio acceso' + (err && err.type ? ' (' + err.type + ')' : '')));
+      drive.client.requestAccessToken({ prompt: drive.token ? '' : undefined });
+    });
+  }
+  async function gfetch(url, opts) {
+    const token = await driveToken();
+    const r = await fetch(url, Object.assign({}, opts, { headers: Object.assign({ Authorization: 'Bearer ' + token }, (opts && opts.headers) || {}) }));
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      if (r.status === 401) { drive.token = null; }
+      throw new Error((data.error && data.error.message) || 'Google Drive respondió ' + r.status);
+    }
+    return data;
+  }
+  async function ensureFolder(name) {
+    const key = 'freedom_drive_folder_' + name;
+    const cached = localStorage.getItem(key);
+    if (cached) {
+      try {
+        const f = await gfetch('https://www.googleapis.com/drive/v3/files/' + cached + '?fields=id,trashed');
+        if (f && f.id && !f.trashed) return f.id;
+      } catch (_) { /* se busca o se crea de nuevo */ }
+    }
+    const q = encodeURIComponent(`name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const found = await gfetch('https://www.googleapis.com/drive/v3/files?fields=files(id)&q=' + q);
+    let id = found.files && found.files[0] && found.files[0].id;
+    if (!id) {
+      const created = await gfetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder' })
+      });
+      id = created.id;
+    }
+    localStorage.setItem(key, id);
+    return id;
+  }
+
+  // HTML sencillo que Google Docs convierte bien (títulos, listas, tablas).
+  function docHtml(rec) {
+    const r = rec.result || {};
+    const h = [];
+    const li = (arr, fn) => (arr && arr.length) ? '<ul>' + arr.map(x => '<li>' + fn(x) + '</li>').join('') + '</ul>' : '';
+    const sec = (title, inner) => inner ? `<h2>${esc(title)}</h2>${inner}` : '';
+    const paras = t => String(t || '').split(/\n+/).filter(Boolean).map(p => `<p>${esc(p)}</p>`).join('');
+    h.push(`<h1>${esc(r.titulo || rec.title)}</h1>`);
+    const meta = [`<b>Fecha:</b> ${esc(rec.date)}`, `<b>Tipo:</b> ${rec.mode === 'reunion' ? 'Reunión' : 'Prédica / enseñanza'}`];
+    if (rec.mode === 'predica') {
+      meta.push(`<b>Enseñanza de:</b> ${esc(rec.names[rec.teacher] || '')}`);
+      if (r.categoria) meta.push(`<b>Categoría:</b> ${esc(r.categoria)}`);
+    }
+    meta.push(`<b>Participantes:</b> ${esc(Object.values(rec.names || {}).join(', '))}`);
+    if (rec.duration) meta.push(`<b>Duración:</b> ${mmss(rec.duration)}`);
+    h.push('<p>' + meta.join('<br>') + '</p>');
+    if (rec.mode === 'predica') {
+      if (r.ensenanza_central) h.push(sec('Enseñanza central', `<p><i>${esc(r.ensenanza_central)}</i></p>`));
+      h.push(sec('Resumen', paras(r.resumen)));
+      h.push(sec('Puntos principales', li(r.puntos_principales, p => `<b>${esc(p.titulo)}</b>${p.minuto ? ' (' + esc(p.minuto) + ')' : ''}: ${esc(p.explicacion)}`)));
+      h.push(sec('Versículos', li(r.versiculos, v => `<b>${esc(v.referencia)}</b>: ${esc(v.como_se_uso)}`)));
+      h.push(sec('Términos hebreos', li(r.terminos_hebreos, t => `<b>${esc(t.termino)}</b>: ${esc(t.significado)}`)));
+      h.push(sec('Aplicaciones', li(r.aplicaciones, a => esc(a))));
+      h.push(sec('Frases destacadas', li(r.frases_destacadas, f => `“${esc(f.texto)}”${f.minuto ? ' (' + esc(f.minuto) + ')' : ''}`)));
+      h.push(sec('Preguntas para reflexionar', li(r.preguntas_reflexion, q => esc(q))));
+    } else {
+      h.push(sec('Resumen', paras(r.resumen)));
+      h.push(sec('Decisiones', li(r.decisiones, d => esc(d))));
+      if (r.tareas && r.tareas.length) {
+        h.push(sec('Tareas', '<table border="1" cellpadding="4"><tr><th>Tarea</th><th>Responsable</th><th>Fecha</th></tr>' +
+          r.tareas.map(t => `<tr><td>${esc(t.tarea)}</td><td>${esc(t.responsable)}</td><td>${esc(t.fecha || '')}</td></tr>`).join('') + '</table>'));
+      }
+      h.push(sec('Temas', li(r.temas, t => `<b>${esc(t.tema)}</b>${t.minuto ? ' (' + esc(t.minuto) + ')' : ''}: ${esc(t.resumen)}`)));
+      h.push(sec('Pendientes', li(r.pendientes, p => esc(p))));
+      h.push(sec('Participación', li(r.participacion, p => `<b>${esc(p.nombre)}</b>: ${esc(p.aportes)}`)));
+    }
+    if (r.mapa_mental) {
+      // El mapa mental como esquema de texto (NotebookLM lo lee bien).
+      const lines = r.mapa_mental.split('\n').filter(l => l.trim()).map(l => {
+        const m = l.match(/^(#+)\s*(.*)$/); const b = l.match(/^(\s*)[-*]\s+(.*)$/);
+        if (m) return `<li style="margin-left:${(m[1].length - 1) * 18}px"><b>${esc(m[2])}</b></li>`;
+        if (b) return `<li style="margin-left:${36 + b[1].length * 9}px">${esc(b[2])}</li>`;
+        return `<li>${esc(l)}</li>`;
+      });
+      h.push(sec('Mapa mental (esquema)', '<ul>' + lines.join('') + '</ul>'));
+    }
+    if (r.tags && r.tags.length) h.push(`<p><b>Etiquetas:</b> ${esc(r.tags.join(', '))}</p>`);
+    if (rec.segments && rec.segments.length) {
+      h.push('<h2>Transcripción completa</h2>');
+      namedSegments(rec).forEach(sg => h.push(`<p><b>[${mmss(sg.start)}] ${esc(sg.speaker)}:</b> ${esc(sg.text)}</p>`));
+    }
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>' + h.filter(Boolean).join('\n') + '</body></html>';
+  }
+
+  async function saveToDrive() {
+    const rec = S.rec;
+    if (!rec || !rec.segments || !rec.segments.length) { toast('Primero procesa una grabación'); return; }
+    rec.title = $('gr-title').value.trim() || rec.title;
+    const btn = $('gr-drive-btn');
+    if (btn) btn.disabled = true;
+    try {
+      // Pedir acceso primero, mientras el clic del usuario sigue "vivo" (evita que se bloquee la ventana).
+      await driveToken();
+      setStatus('<span class="gr-spin"></span> Guardando en Google Drive…', 'work');
+      const folderId = await ensureFolder(rec.mode === 'reunion' ? DRIVE_FOLDER_REUNIONES : DRIVE_FOLDER);
+      const name = `${rec.date} — ${(rec.result && rec.result.titulo) || rec.title}`;
+      const boundary = 'freedom' + Date.now();
+      const meta = rec.driveFileId
+        ? { name }
+        : { name, mimeType: 'application/vnd.google-apps.document', parents: [folderId], description: 'Generado por Iglesia Freedom — Centro de Enseñanza' };
+      const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n` +
+        `--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n${docHtml(rec)}\r\n--${boundary}--`;
+      const url = rec.driveFileId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${rec.driveFileId}?uploadType=multipart&fields=id,webViewLink`
+        : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink';
+      let file;
+      try {
+        file = await gfetch(url, { method: rec.driveFileId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body });
+      } catch (err) {
+        if (!rec.driveFileId) throw err;
+        // El Doc anterior se borró: crear uno nuevo.
+        rec.driveFileId = null;
+        rec.driveLink = null;
+        return saveToDrive();
+      }
+      const isUpdate = !!rec.driveFileId;
+      rec.driveFileId = file.id;
+      rec.driveLink = file.webViewLink || `https://docs.google.com/document/d/${file.id}/edit`;
+      saveRecording(true);
+      setStatus(`✓ ${isUpdate ? 'Actualizado' : 'Guardado'} en Google Drive, carpeta “${esc(rec.mode === 'reunion' ? DRIVE_FOLDER_REUNIONES : DRIVE_FOLDER)}”. <a href="${esc(rec.driveLink)}" target="_blank" rel="noopener">Abrir el Doc</a> · En NotebookLM: <b>Agregar fuente → Google Drive</b>.`, 'ok');
+    } catch (err) {
+      setStatus('⚠️ No se pudo guardar en Drive: ' + esc(err.message), 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   function renderSaved() {
@@ -1134,11 +1309,11 @@
     init, onShow, onHide, start, stop, onUpload, setMode, addPerson, removePerson, tapSpeaker,
     cycleLineSpeaker, renameVoice, play, summarize, showTab, copyMarkdown, downloadMarkdown,
     downloadAudio, downloadMindmapSvg, saveRecording, saveAsSermon, openSaved, deleteSaved,
-    retry, recover, downloadPending, discard,
+    retry, recover, downloadPending, discard, saveToDrive,
     permit: () => refreshDevices(true),
     isRecording: () => !!S.recorder,
     // para pruebas
-    _buildSegments: buildSegments, _speakerStats: speakerStats, _suggestNames: suggestNames, _toMarkdown: toMarkdown
+    _docHtml: docHtml, _buildSegments: buildSegments, _speakerStats: speakerStats, _suggestNames: suggestNames, _toMarkdown: toMarkdown
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
