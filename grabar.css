@@ -101,3 +101,4 @@
 .gr-menu-item.on { font-weight: 600; color: var(--gold-dim); }
 .gr-menu-new { color: var(--blue); border-top: 1px solid var(--cream-dark); }
 .gr-menu-note { padding: 6px 14px 4px; font-size: 11px; color: var(--stone); }
+.gr-rec-dot.paused { background: var(--gold); animation: none; }

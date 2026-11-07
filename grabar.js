@@ -277,7 +277,12 @@
   }
 
   // ── Transcripción en vivo ─────────────────────────────────────────
-  function elapsed() { return S.startedAt ? (Date.now() - S.startedAt) / 1000 : 0; }
+  // Tiempo grabado (sin contar las pausas), igual que el del audio.
+  function elapsed() {
+    if (!S.startedAt) return 0;
+    const now = S.pausedAt || Date.now();
+    return Math.max(0, (now - S.startedAt - (S.pausedMs || 0)) / 1000);
+  }
 
   // ── Voces en vivo ("Interlocutor 1, 2, 3…") ───────────────────────
   // El modo en vivo de ElevenLabs no separa voces. Cada ~minuto se manda el
@@ -510,7 +515,7 @@
     setLiveBadge('connecting', 'Conectando…');
 
     ws.onopen = () => {
-      setLiveBadge('on', 'En vivo');
+      setLiveBadge(S.pausedAt ? 'connecting' : 'on', S.pausedAt ? 'En pausa' : 'En vivo');
       const queued = S.pending.splice(0);
       queued.forEach(sendChunk);
     };
@@ -612,6 +617,7 @@
       const src = S.audioCtx.createMediaStreamSource(S.stream);
       S.worklet = new AudioWorkletNode(S.audioCtx, 'pcm16k');
       S.worklet.port.onmessage = e => {
+        if (S.pausedAt) { if (e.data.type === 'level') setLevel(0); return; }
         if (e.data.type === 'pcm') { pushPcm(e.data.buf); sendChunk(e.data.buf); }
         else if (e.data.type === 'level') setLevel(e.data.rms);
       };
@@ -625,9 +631,11 @@
     }
 
     S.startedAt = Date.now();
+    S.pausedAt = null; S.pausedMs = 0;
     S.ldTimer = setInterval(liveDiarize, 15000);
     let ticks = 0;
     S.timer = setInterval(() => {
+      if (S.pausedAt) return;
       $('gr-timer').textContent = mmss(elapsed());
       if (++ticks % 10 === 0) persistSession({ duration: elapsed(), title: $('gr-title').value.trim() }); // cada 5 s
     }, 500);
@@ -635,14 +643,46 @@
 
     $('gr-rec-btn').style.display = 'none';
     $('gr-stop-btn').style.display = 'inline-flex';
+    $('gr-pause-btn').style.display = 'inline-flex';
+    $('gr-pause-btn').textContent = '⏸ Pausar';
     $('gr-mic').disabled = true;
     $('gr-upload-btn').disabled = true;
     $('gr-rec-dot').classList.add('on');
     setStatus('');
   }
 
+  function togglePause() {
+    const rec = S.recorder;
+    if (!rec) return;
+    if (!S.pausedAt) {
+      // Pausar: el audio deja de grabarse y de mandarse a la transcripción en vivo.
+      S.pausedAt = Date.now();
+      if (rec.state === 'recording') rec.pause();
+      if (S.ws && S.ws.readyState === 1) {
+        try { S.ws.send(JSON.stringify({ message_type: 'input_audio_chunk', audio_base_64: '', commit: true, sample_rate: 16000 })); } catch (_) {}
+      }
+      $('gr-pause-btn').textContent = '▶ Reanudar';
+      $('gr-rec-dot').classList.remove('on');
+      $('gr-rec-dot').classList.add('paused');
+      $('gr-timer').textContent = mmss(elapsed()) + ' · en pausa';
+      setLiveBadge('connecting', 'En pausa');
+      persistSession({ duration: elapsed() });
+    } else {
+      S.pausedMs += Date.now() - S.pausedAt;
+      S.pausedAt = null;
+      if (rec.state === 'paused') rec.resume();
+      $('gr-pause-btn').textContent = '⏸ Pausar';
+      $('gr-rec-dot').classList.remove('paused');
+      $('gr-rec-dot').classList.add('on');
+      setLiveBadge(S.ws && S.ws.readyState === 1 ? 'on' : 'connecting', S.ws && S.ws.readyState === 1 ? 'En vivo' : 'Reconectando…');
+      // Si la conexión en vivo se cerró durante la pausa, se reconecta sola (onclose); si no existe, abrirla.
+      if (!S.ws && S.wsWanted) openRealtime();
+    }
+  }
+
   async function stop() {
     if (!S.recorder) return;
+    if (S.pausedAt) { S.pausedMs += Date.now() - S.pausedAt; S.pausedAt = null; }
     const duration = elapsed();
     const mime = S.recorder.mimeType || 'audio/webm';
 
@@ -669,6 +709,8 @@
 
     $('gr-rec-btn').style.display = 'inline-flex';
     $('gr-stop-btn').style.display = 'none';
+    $('gr-pause-btn').style.display = 'none';
+    $('gr-rec-dot').classList.remove('paused');
     $('gr-mic').disabled = false;
     $('gr-upload-btn').disabled = false;
     $('gr-rec-dot').classList.remove('on');
@@ -1517,7 +1559,7 @@
   function onHide() { if (!S.recorder) stopPreview(); }
 
   window.Grabar = {
-    init, onShow, onHide, start, stop, onUpload, setMode, addPerson, removePerson, tapSpeaker,
+    init, onShow, onHide, start, stop, togglePause, onUpload, setMode, addPerson, removePerson, tapSpeaker,
     renameVoice, play, summarize, showTab, copyMarkdown, downloadMarkdown,
     downloadAudio, downloadMindmapSvg, saveRecording, saveAsSermon, openSaved, deleteSaved,
     retry, recover, downloadPending, discard, saveToDrive, resplit, labelMenu,
