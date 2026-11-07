@@ -40,6 +40,8 @@
     browserDsp: false,
     participants: loadJSON(PEOPLE_KEY, ['Pastor']),
     liveSpeaker: null,
+    liveVoices: localStorage.getItem('freedom_live_voices') !== '0',
+    pcm: [], pcmTotal: 0, ldTimer: null,
 
     // grabación
     stream: null, recorder: null, chunks: [], audioCtx: null, worklet: null,
@@ -277,14 +279,161 @@
   // ── Transcripción en vivo ─────────────────────────────────────────
   function elapsed() { return S.startedAt ? (Date.now() - S.startedAt) / 1000 : 0; }
 
+  // ── Voces en vivo ("Interlocutor 1, 2, 3…") ───────────────────────
+  // El modo en vivo de ElevenLabs no separa voces. Cada ~minuto se manda el
+  // último tramo (con 30 s de traslape) a Scribe v2 con diarize, y las voces
+  // de cada tramo se empatan con las anteriores usando las palabras del traslape.
+  const SR = 16000;
+  const LD = { busy: false, lastEnd: 0, words: [], g: {}, n: 0, names: {}, errors: 0 };
+  function resetLiveVoices() {
+    LD.busy = false; LD.lastEnd = 0; LD.words = []; LD.g = {}; LD.n = 0; LD.names = {}; LD.errors = 0;
+    S.pcm = []; S.pcmTotal = 0;
+  }
+  function pushPcm(buf) {
+    const a = new Int16Array(buf);
+    S.pcm.push({ start: S.pcmTotal, data: a });
+    S.pcmTotal += a.length;
+    const keepFrom = S.pcmTotal - 200 * SR; // conservar ~200 s
+    while (S.pcm.length && S.pcm[0].start + S.pcm[0].data.length < keepFrom) S.pcm.shift();
+  }
+  function wavFrom(a, b) {
+    const n = Math.max(0, b - a);
+    const buf = new ArrayBuffer(44 + n * 2);
+    const v = new DataView(buf);
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, SR, true); v.setUint32(28, SR * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, 'data'); v.setUint32(40, n * 2, true);
+    const out = new Int16Array(buf, 44, n);
+    for (const c of S.pcm) {
+      const cs = c.start, ce = cs + c.data.length;
+      const st = Math.max(a, cs), en = Math.min(b, ce);
+      if (en > st) out.set(c.data.subarray(st - cs, en - cs), st - a);
+    }
+    return new File([buf], 'tramo.wav', { type: 'audio/wav' });
+  }
+  function normWord(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9ñ]/g, ''); }
+
+  function mergeWindow(words, boundary) {
+    const tail = LD.words.filter(p => p.start >= boundary - 40);
+    const votes = {};
+    words.filter(w => w.start < boundary).forEach(w => {
+      const nw = normWord(w.text);
+      if (!nw) return;
+      const m = tail.find(p => Math.abs(p.start - w.start) < 0.8 && normWord(p.text) === nw);
+      if (!m) return;
+      const v = votes[w.spk] || (votes[w.spk] = {});
+      v[m.g] = (v[m.g] || 0) + 1;
+    });
+    const map = {}, taken = new Set();
+    Object.entries(votes)
+      .map(([spk, v]) => { const best = Object.entries(v).sort((a, b) => b[1] - a[1])[0]; return [spk, best[0], best[1]]; })
+      .sort((a, b) => b[2] - a[2])
+      .forEach(([spk, g]) => { if (!taken.has(g)) { map[spk] = g; taken.add(g); } });
+    words.filter(w => w.start >= boundary).forEach(w => {
+      if (!map[w.spk]) { LD.n++; const g = 'g' + LD.n; LD.g[g] = { idx: LD.n, fixed: null }; map[w.spk] = g; }
+      LD.words.push({ start: w.start, end: w.end, text: w.text, g: map[w.spk] });
+    });
+  }
+
+  function computeNames() {
+    const res = {};
+    Object.entries(LD.g).forEach(([g, o]) => { if (o.fixed) res[g] = o.fixed; });
+    const used = new Set(Object.values(res));
+    const votes = {};
+    S.liveLines.forEach(l => {
+      if (!l.g || !l.speaker || !LD.g[l.g] || LD.g[l.g].fixed) return;
+      const v = votes[l.g] || (votes[l.g] = {});
+      v[l.speaker] = (v[l.speaker] || 0) + 1;
+    });
+    const cand = [];
+    Object.entries(votes).forEach(([g, v]) => Object.entries(v).forEach(([n, c]) => cand.push([g, n, c])));
+    cand.sort((a, b) => b[2] - a[2]).forEach(([g, n]) => { if (!res[g] && !used.has(n)) { res[g] = n; used.add(n); } });
+    if (S.mode === 'predica') {
+      const pastor = S.participants.find(p => /pastor|rab/i.test(p));
+      if (pastor && !used.has(pastor)) {
+        const secs = {};
+        LD.words.forEach(w => { secs[w.g] = (secs[w.g] || 0) + (w.end - w.start); });
+        const total = Object.values(secs).reduce((a, b) => a + b, 0);
+        const ranked = Object.entries(secs).sort((a, b) => b[1] - a[1]);
+        const top = ranked[0], second = ranked[1];
+        // En una prédica, quien más habla (claramente) es quien enseña.
+        if (top && !res[top[0]] && total && top[1] / total >= 0.4 && (!second || top[1] >= second[1] * 1.5)) { res[top[0]] = pastor; used.add(pastor); }
+      }
+    }
+    let k = 0;
+    Object.entries(LD.g).sort((a, b) => a[1].idx - b[1].idx).forEach(([g]) => {
+      if (res[g]) return;
+      let name;
+      do { name = `Interlocutor ${++k}`; } while (used.has(name));
+      res[g] = name;
+    });
+    LD.names = res;
+  }
+
+  function labelLines() {
+    const lines = S.liveLines;
+    lines.forEach((l, i) => {
+      const next = lines[i + 1];
+      const end = Math.min(next ? next.t : l.t + 30, l.t + 30);
+      if (l.t > LD.lastEnd) return;
+      const tally = {};
+      LD.words.forEach(w => { if (w.start >= l.t - 1 && w.start < end) tally[w.g] = (tally[w.g] || 0) + 1; });
+      const best = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+      if (best) l.g = best[0];
+    });
+    computeNames();
+    lines.forEach(l => { if (l.g && LD.names[l.g]) l.autoLabel = LD.names[l.g]; });
+  }
+  function lineLabel(l) {
+    if (l.g && LD.names[l.g]) return LD.names[l.g];
+    if (l.autoLabel) return l.autoLabel;
+    return l.speaker || null;
+  }
+
+  async function liveDiarize() {
+    if (LD.busy || !S.recorder || !S.liveVoices) return;
+    const end = S.pcmTotal;
+    if (end / SR - LD.lastEnd < 45) return;
+    const firstAvail = S.pcm.length ? S.pcm[0].start : 0;
+    const start = Math.max(firstAvail, Math.round(Math.max(0, LD.lastEnd - 30) * SR));
+    const boundary = LD.lastEnd;
+    LD.busy = true;
+    try {
+      const data = await transcribeBatch(wavFrom(start, end));
+      const off = start / SR;
+      const words = (data.words || []).filter(w => w.type === 'word')
+        .map(w => ({ start: w.start + off, end: w.end + off, text: w.text, spk: w.speaker_id || 'speaker_0' }));
+      mergeWindow(words, boundary);
+      LD.lastEnd = end / SR;
+      LD.errors = 0;
+      labelLines();
+      renderLive();
+      persistSession();
+    } catch (err) {
+      LD.errors++;
+      console.warn('[Grabar] voces en vivo:', err);
+      if (LD.errors >= 3) { setLiveBadge('error', 'Detección de voces en vivo pausada (se separan al final)'); S.liveVoices = false; }
+    } finally {
+      LD.busy = false;
+    }
+  }
+
   function renderLive() {
     const box = $('gr-live');
+    const colorFor = (label, l) => {
+      const ci = label ? S.participants.indexOf(label) : -1;
+      if (ci >= 0) return SPEAKER_COLORS[ci % SPEAKER_COLORS.length];
+      if (l && l.g && LD.g[l.g]) return SPEAKER_COLORS[(LD.g[l.g].idx + 2) % SPEAKER_COLORS.length];
+      return 'var(--stone-light)';
+    };
     const lines = S.liveLines.map((l, idx) => {
-      const ci = l.speaker ? S.participants.indexOf(l.speaker) : -1;
-      const color = ci >= 0 ? SPEAKER_COLORS[ci % SPEAKER_COLORS.length] : 'var(--stone-light)';
+      const label = lineLabel(l);
+      const pending = !label;
       return `<div class="gr-line">
         <span class="gr-time">${mmss(l.t)}</span>
-        <span class="gr-who" style="--c:${color}" onclick="Grabar.cycleLineSpeaker(${idx})" title="Cambiar quién habla">${esc(l.speaker || '¿?')}</span>
+        <span class="gr-who ${pending ? 'gr-pending' : ''}" style="--c:${colorFor(label, l)}" onclick="Grabar.labelMenu(${idx}, event)" title="${pending ? 'Identificando la voz… (toca para nombrar)' : 'Toca para nombrar esta voz'}">${esc(label || (S.recorder && S.liveVoices ? 'identificando…' : '¿?'))}</span>
         <span class="gr-text">${esc(l.text)}</span>
       </div>`;
     }).join('');
@@ -293,14 +442,51 @@
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
     if (atBottom || S.recorder) box.scrollTop = box.scrollHeight;
   }
-  function cycleLineSpeaker(idx) {
+
+  // Menú para nombrar una voz desde cualquier línea.
+  function closeLabelMenu() { const m = $('gr-label-menu'); if (m) m.remove(); }
+  function labelMenu(idx, ev) {
+    ev.stopPropagation();
+    closeLabelMenu();
     const l = S.liveLines[idx];
     if (!l) return;
-    const opts = [null].concat(S.participants);
-    const cur = opts.indexOf(l.speaker || null);
-    l.speaker = opts[(cur + 1) % opts.length];
-    renderLive();
+    const menu = document.createElement('div');
+    menu.id = 'gr-label-menu';
+    menu.className = 'gr-menu';
+    const current = lineLabel(l);
+    menu.innerHTML = `<div class="gr-menu-title">${l.g ? 'Esta voz es de…' : '¿Quién dijo esto?'}</div>` +
+      S.participants.map((p, i) => `<div class="gr-menu-item ${p === current ? 'on' : ''}" data-i="${i}">${esc(p)}</div>`).join('') +
+      `<div class="gr-menu-item gr-menu-new">+ Otro nombre…</div>` +
+      (l.g ? '<div class="gr-menu-note">Se aplica a todas las líneas de esta voz.</div>' : '<div class="gr-menu-note">Esta línea todavía no tiene voz detectada.</div>');
+    document.body.appendChild(menu);
+    const r = ev.target.getBoundingClientRect();
+    menu.style.top = Math.min(window.innerHeight - menu.offsetHeight - 8, r.bottom + 4) + 'px';
+    menu.style.left = Math.min(window.innerWidth - menu.offsetWidth - 8, r.left) + 'px';
+    menu.addEventListener('click', e => {
+      e.stopPropagation();
+      const item = e.target.closest('.gr-menu-item');
+      if (!item) return;
+      let name = item.classList.contains('gr-menu-new') ? (prompt('Nombre de esta voz:') || '').trim() : S.participants[+item.dataset.i];
+      if (!name) return;
+      if (!S.participants.includes(name)) { S.participants.push(name); saveJSON(PEOPLE_KEY, S.participants); renderPeople(); }
+      setLineName(idx, name);
+      closeLabelMenu();
+    });
   }
+  function setLineName(idx, name) {
+    const l = S.liveLines[idx];
+    if (!l) return;
+    if (l.g && LD.g[l.g]) {
+      Object.values(LD.g).forEach(o => { if (o.fixed === name) o.fixed = null; });
+      LD.g[l.g].fixed = name;
+    } else {
+      l.speaker = name;
+    }
+    labelLines();
+    renderLive();
+    persistSession();
+  }
+  document.addEventListener('click', closeLabelMenu);
 
   async function openRealtime() {
     if (!S.wsWanted) return;
@@ -386,6 +572,8 @@
     stopPreview();
     resetResult();
     S.liveLines = []; S.partial = ''; S.partialStart = null; S.pending = [];
+    resetLiveVoices();
+    S.liveVoices = $('gr-live-voices') ? $('gr-live-voices').checked : S.liveVoices;
     renderLive();
 
     try {
@@ -424,7 +612,7 @@
       const src = S.audioCtx.createMediaStreamSource(S.stream);
       S.worklet = new AudioWorkletNode(S.audioCtx, 'pcm16k');
       S.worklet.port.onmessage = e => {
-        if (e.data.type === 'pcm') sendChunk(e.data.buf);
+        if (e.data.type === 'pcm') { pushPcm(e.data.buf); sendChunk(e.data.buf); }
         else if (e.data.type === 'level') setLevel(e.data.rms);
       };
       const mute = S.audioCtx.createGain();
@@ -437,6 +625,7 @@
     }
 
     S.startedAt = Date.now();
+    S.ldTimer = setInterval(liveDiarize, 15000);
     let ticks = 0;
     S.timer = setInterval(() => {
       $('gr-timer').textContent = mmss(elapsed());
@@ -475,6 +664,7 @@
     if (S.audioCtx) S.audioCtx.close().catch(() => {});
     S.audioCtx = null; S.worklet = null;
     clearInterval(S.timer);
+    clearInterval(S.ldTimer);
     if (S.wakeLock) { S.wakeLock.release().catch(() => {}); S.wakeLock = null; }
 
     $('gr-rec-btn').style.display = 'inline-flex';
@@ -515,7 +705,8 @@
   }
 
   // ── Separar voces (Scribe v2 por lotes) ───────────────────────────
-  async function transcribeBatch(file) {
+  async function transcribeBatch(file, opts) {
+    opts = opts || {};
     const build = () => {
       const fd = new FormData();
       fd.append('model_id', 'scribe_v2');
@@ -524,6 +715,7 @@
       fd.append('language_code', LANG);
       fd.append('timestamps_granularity', 'word');
       fd.append('tag_audio_events', 'false');
+      if (opts.threshold) fd.append('diarization_threshold', String(opts.threshold));
       KEYTERMS.forEach(k => fd.append('keyterms', k));
       return fd;
     };
@@ -590,11 +782,13 @@
   // Usa las marcas hechas en vivo para sugerir el nombre de cada voz.
   function suggestNames(segs, stats, liveLines, mode) {
     const votes = {};
-    liveLines.filter(l => l.speaker).forEach(l => {
+    liveLines.forEach(l => {
+      const label = lineLabel(l);
+      if (!label) return;
       const hit = segs.find(s => l.t >= s.start - 3 && l.t <= s.end + 1);
       if (!hit) return;
       const v = votes[hit.speakerId] || (votes[hit.speakerId] = {});
-      v[l.speaker] = (v[l.speaker] || 0) + 1;
+      v[label] = (v[label] || 0) + 1;
     });
     const names = {};
     const used = new Set();
@@ -608,11 +802,17 @@
       const pastor = S.participants.find(p => /pastor|rab/i.test(p)) || 'Pastor';
       if (!used.has(pastor)) names[stats[0].id] = pastor;
     }
-    stats.forEach((st, i) => { if (!names[st.id]) names[st.id] = `Voz ${i + 1}`; });
+    let k = 0;
+    stats.forEach(st => {
+      if (names[st.id]) return;
+      let n;
+      do { n = `Interlocutor ${++k}`; } while (used.has(n));
+      names[st.id] = n; used.add(n);
+    });
     return names;
   }
 
-  async function processAudio(file, duration, recId) {
+  async function processAudio(file, duration, recId, opts) {
     const audioUrl = URL.createObjectURL(file);
     S.rec = {
       id: recId || Date.now(),
@@ -632,7 +832,7 @@
     setStatus('<span class="gr-spin"></span> Separando las voces de toda la grabación con ElevenLabs… (en una prédica larga puede tardar unos minutos)', 'work');
 
     try {
-      const data = await transcribeBatch(file);
+      const data = await transcribeBatch(file, opts);
       const segs = buildSegments(data);
       if (!segs.length) throw new Error('No se detectó voz en la grabación');
       const stats = speakerStats(segs);
@@ -652,6 +852,12 @@
     }
   }
 
+  // Si juntó a dos personas en una sola voz: volver a separar con más sensibilidad.
+  function resplit() {
+    const rec = S.rec;
+    if (!rec || !rec.audioBlob) { toast('El audio de esta grabación no está disponible'); return; }
+    processAudio(rec.audioBlob, rec.duration, rec.id, { threshold: 0.12 });
+  }
   function retry() {
     const rec = S.rec;
     if (!rec || !rec.audioBlob) return;
@@ -701,7 +907,7 @@
     name = (name || '').trim();
     if (!name || !S.rec) return;
     S.rec.names[id] = name;
-    if (!/^Voz \d+$/.test(name) && !S.participants.includes(name)) {
+    if (!/^(Voz|Interlocutor) \d+$/.test(name) && !S.participants.includes(name)) {
       S.participants.push(name);
       saveJSON(PEOPLE_KEY, S.participants);
       renderPeople();
@@ -1283,6 +1489,11 @@
       startPreview();
     });
     $('gr-dsp').addEventListener('change', e => { S.browserDsp = e.target.checked; startPreview(); });
+    const lv = $('gr-live-voices');
+    if (lv) {
+      lv.checked = S.liveVoices;
+      lv.addEventListener('change', e => { S.liveVoices = e.target.checked; localStorage.setItem('freedom_live_voices', e.target.checked ? '1' : '0'); });
+    }
     $('gr-teacher').addEventListener('change', e => setTeacher(e.target.value));
     $('gr-person-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addPerson(); } });
     $('gr-audio').addEventListener('timeupdate', onAudioTime);
@@ -1307,13 +1518,13 @@
 
   window.Grabar = {
     init, onShow, onHide, start, stop, onUpload, setMode, addPerson, removePerson, tapSpeaker,
-    cycleLineSpeaker, renameVoice, play, summarize, showTab, copyMarkdown, downloadMarkdown,
+    renameVoice, play, summarize, showTab, copyMarkdown, downloadMarkdown,
     downloadAudio, downloadMindmapSvg, saveRecording, saveAsSermon, openSaved, deleteSaved,
-    retry, recover, downloadPending, discard, saveToDrive,
+    retry, recover, downloadPending, discard, saveToDrive, resplit, labelMenu,
     permit: () => refreshDevices(true),
     isRecording: () => !!S.recorder,
     // para pruebas
-    _docHtml: docHtml, _buildSegments: buildSegments, _speakerStats: speakerStats, _suggestNames: suggestNames, _toMarkdown: toMarkdown
+    _ld: () => ({ LD, names: LD.names, lines: S.liveLines }), _docHtml: docHtml, _buildSegments: buildSegments, _speakerStats: speakerStats, _suggestNames: suggestNames, _toMarkdown: toMarkdown
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

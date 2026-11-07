@@ -92,3 +92,12 @@
 
 .gr-recover { margin-bottom: 18px; }
 .gr-recover-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #FFF4E5; border: 1px solid #F0C27B; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; font-size: 13px; color: var(--text-main); }
+
+.gr-pending { color: var(--stone) !important; font-weight: 400; font-style: italic; }
+.gr-menu { position: fixed; z-index: 1000; background: var(--white); border: 1px solid var(--cream-dark); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.15); min-width: 200px; padding: 6px 0; font-size: 13px; }
+.gr-menu-title { padding: 6px 14px; font-size: 11px; color: var(--stone); text-transform: uppercase; letter-spacing: 1px; }
+.gr-menu-item { padding: 8px 14px; cursor: pointer; }
+.gr-menu-item:hover { background: var(--cream); }
+.gr-menu-item.on { font-weight: 600; color: var(--gold-dim); }
+.gr-menu-new { color: var(--blue); border-top: 1px solid var(--cream-dark); }
+.gr-menu-note { padding: 6px 14px 4px; font-size: 11px; color: var(--stone); }

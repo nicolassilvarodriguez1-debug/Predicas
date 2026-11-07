@@ -660,6 +660,7 @@
                 <button class="btn btn-outline btn-sm" id="gr-mic-permit" onclick="Grabar.permit()">Ver micrófonos</button>
               </div>
               <div class="gr-level"><div class="gr-level-bar" id="gr-level-bar"></div></div>
+              <label class="gr-check"><input type="checkbox" id="gr-live-voices" checked> <span>Detectar voces en vivo (Interlocutor 1, 2, 3…, con ~1 minuto de retraso). Usa un poco más de créditos.</span></label>
               <label class="gr-check"><input type="checkbox" id="gr-dsp"> <span>Usar cancelación de eco y ruido del navegador. Déjalo apagado con micrófonos de conferencia 360: ya traen su propio procesamiento.</span></label>
             </div>
           </div>
@@ -690,7 +691,7 @@
           <div class="gr-card-title">Transcripción en vivo <span class="gr-badge" id="gr-live-badge" style="display:none;"></span></div>
           <div class="gr-card-sub" id="gr-live-hint">Toca un nombre para marcar quién habla ahora (opcional).</div>
           <div class="gr-live" id="gr-live"></div>
-          <div class="gr-muted" style="margin-top:8px;">Al detener, se procesa toda la grabación para separar las voces con precisión. Tus marcas en vivo sirven para sugerir los nombres.</div>
+          <div class="gr-muted" style="margin-top:8px;">Las voces se identifican solas cada minuto. Toca la etiqueta de una línea para ponerle nombre a esa voz. Al detener, se procesa todo otra vez con más precisión.</div>
         </div>
 
         <div class="gr-recover" id="gr-recover" style="display:none;"></div>
@@ -709,6 +710,7 @@
           </div>
           <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
             <button class="btn btn-gold" id="gr-summarize-btn" onclick="Grabar.summarize()" disabled>✨ Generar resumen y mapa mental</button>
+            <button class="btn btn-outline" onclick="Grabar.resplit()" title="Úsalo si juntó a dos personas en una sola voz">🔀 Separar más voces</button>
             <button class="btn btn-outline" id="gr-download-audio" onclick="Grabar.downloadAudio()" style="display:none;">⬇ Descargar audio</button>
           </div>
         </div>
