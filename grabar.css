@@ -89,3 +89,6 @@
   .gr-line { grid-template-columns: 48px 1fr; }
   .gr-line .gr-text { grid-column: 1 / -1; }
 }
+
+.gr-recover { margin-bottom: 18px; }
+.gr-recover-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #FFF4E5; border: 1px solid #F0C27B; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; font-size: 13px; color: var(--text-main); }

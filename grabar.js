@@ -85,6 +85,61 @@
     el.style.display = html ? 'flex' : 'none';
   }
 
+  // ── Almacén local seguro (IndexedDB) ──────────────────────────────
+  // Guarda el audio por pedazos MIENTRAS se graba y los datos de la sesión,
+  // para poder recuperar todo si la pestaña se cierra o el navegador se cuelga.
+  const DB = (function () {
+    let opening = null;
+    function open() {
+      if (!window.indexedDB) return Promise.reject(new Error('Este navegador no tiene IndexedDB'));
+      if (!opening) {
+        opening = new Promise((res, rej) => {
+          const r = indexedDB.open('freedom_grabar', 1);
+          r.onupgradeneeded = () => {
+            const db = r.result;
+            if (!db.objectStoreNames.contains('sessions')) db.createObjectStore('sessions', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('chunks')) db.createObjectStore('chunks', { keyPath: ['recId', 'seq'] });
+          };
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => { opening = null; rej(r.error); };
+        });
+      }
+      return opening;
+    }
+    function tx(store, mode, fn) {
+      return open().then(db => new Promise((res, rej) => {
+        const t = db.transaction(store, mode);
+        const req = fn(t.objectStore(store));
+        t.oncomplete = () => res(req ? req.result : undefined);
+        t.onerror = () => rej(t.error);
+        t.onabort = () => rej(t.error);
+      }));
+    }
+    const range = id => IDBKeyRange.bound([id, 0], [id, Infinity]);
+    return {
+      putSession: sess => tx('sessions', 'readwrite', st => st.put(sess)),
+      getSession: id => tx('sessions', 'readonly', st => st.get(id)),
+      allSessions: () => tx('sessions', 'readonly', st => st.getAll()),
+      putChunk: (recId, seq, blob) => tx('chunks', 'readwrite', st => st.put({ recId, seq, blob })),
+      getAudio: (id, mime) => tx('chunks', 'readonly', st => st.getAll(range(id))).then(rows => {
+        if (!rows || !rows.length) return null;
+        rows.sort((a, b) => a.seq - b.seq);
+        return new Blob(rows.map(r => r.blob), { type: mime || rows[0].blob.type || 'audio/webm' });
+      }),
+      remove: id => Promise.all([
+        tx('sessions', 'readwrite', st => st.delete(id)),
+        tx('chunks', 'readwrite', st => st.delete(range(id)))
+      ])
+    };
+  })();
+  function safe(p) { return Promise.resolve(p).catch(err => { console.warn('[Grabar] almacenamiento local:', err); return null; }); }
+  function persistSession(changes) {
+    if (!S.session) return Promise.resolve();
+    Object.assign(S.session, changes || {});
+    return safe(DB.putSession(Object.assign({}, S.session, { liveLines: (S.session.liveLines || []).slice() })));
+  }
+  function extOf(mime) { return (mime || '').includes('mp4') ? 'm4a' : (mime || '').includes('ogg') ? 'ogg' : 'webm'; }
+
   // Llama a las funciones de /api con la clave opcional de la app.
   async function apiPost(url, body, retried) {
     const headers = { 'Content-Type': 'application/json' };
@@ -345,7 +400,21 @@
     const mime = pickMime();
     S.chunks = [];
     S.recorder = new MediaRecorder(S.stream, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : undefined);
-    S.recorder.ondataavailable = e => { if (e.data && e.data.size) S.chunks.push(e.data); };
+    const recId = Date.now();
+    S.session = {
+      id: recId, status: 'recording', source: 'mic', mode: S.mode,
+      title: $('gr-title').value.trim(), date: $('gr-date').value || today(),
+      mime: S.recorder.mimeType || mime || 'audio/webm', startedAt: recId, duration: 0,
+      liveLines: S.liveLines
+    };
+    persistSession();
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    let seq = 0;
+    S.recorder.ondataavailable = e => {
+      if (!e.data || !e.data.size) return;
+      S.chunks.push(e.data);
+      safe(DB.putChunk(recId, seq++, e.data));
+    };
     S.recorder.start(1000);
 
     // 2) Audio en vivo a 16 kHz → ElevenLabs Realtime
@@ -368,7 +437,11 @@
     }
 
     S.startedAt = Date.now();
-    S.timer = setInterval(() => { $('gr-timer').textContent = mmss(elapsed()); }, 500);
+    let ticks = 0;
+    S.timer = setInterval(() => {
+      $('gr-timer').textContent = mmss(elapsed());
+      if (++ticks % 10 === 0) persistSession({ duration: elapsed(), title: $('gr-title').value.trim() }); // cada 5 s
+    }, 500);
     try { if (navigator.wakeLock) S.wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
 
     $('gr-rec-btn').style.display = 'none';
@@ -415,9 +488,11 @@
       if (S.partial) { S.liveLines.push({ t: S.partialStart || duration, text: S.partial, speaker: S.liveSpeaker }); S.partial = ''; renderLive(); }
     }, 2600);
 
-    const ext = mime.includes('mp4') ? 'm4a' : mime.includes('ogg') ? 'ogg' : 'webm';
-    const file = new File([blob], `grabacion-${today()}.${ext}`, { type: mime });
-    processAudio(file, duration);
+    const file = new File([blob], `grabacion-${today()}.${extOf(mime)}`, { type: mime });
+    const recId = S.session ? S.session.id : Date.now();
+    await persistSession({ status: 'stopped', duration, title: $('gr-title').value.trim() });
+    setTimeout(() => persistSession(), 3000); // incluir las últimas líneas en vivo
+    processAudio(file, duration, recId);
   }
 
   function onUpload(e) {
@@ -428,7 +503,15 @@
     S.liveLines = [];
     renderLive();
     if (!$('gr-title').value) $('gr-title').value = f.name.replace(/\.[^.]+$/, '');
-    processAudio(f, null);
+    const recId = Date.now();
+    S.session = {
+      id: recId, status: 'stopped', source: 'upload', mode: S.mode, title: $('gr-title').value.trim(),
+      date: $('gr-date').value || today(), mime: f.type || 'audio/mpeg', fileName: f.name,
+      startedAt: recId, duration: 0, liveLines: S.liveLines
+    };
+    persistSession();
+    safe(DB.putChunk(recId, 0, f));
+    processAudio(f, null, recId);
   }
 
   // ── Separar voces (Scribe v2 por lotes) ───────────────────────────
@@ -529,10 +612,10 @@
     return names;
   }
 
-  async function processAudio(file, duration) {
+  async function processAudio(file, duration, recId) {
     const audioUrl = URL.createObjectURL(file);
     S.rec = {
-      id: Date.now(),
+      id: recId || Date.now(),
       mode: S.mode,
       title: $('gr-title').value.trim() || (S.mode === 'predica' ? 'Prédica' : 'Reunión') + ' ' + today(),
       date: $('gr-date').value || today(),
@@ -557,12 +640,29 @@
       S.rec.speakers = stats;
       S.rec.names = suggestNames(segs, stats, S.rec.liveLines, S.rec.mode);
       S.rec.duration = S.rec.duration || segs[segs.length - 1].end;
-      setStatus(`✓ Se detectaron ${stats.length} voz${stats.length === 1 ? '' : 'es'}. Ponle nombre a cada una y genera el resumen.`, 'ok');
       renderVoices();
       renderTranscript();
+      const saved = saveRecording(true);
+      if (saved && S.session && S.session.id === S.rec.id) persistSession({ status: 'processed' });
+      else if (saved) safe(DB.getSession(S.rec.id).then(x => x && DB.putSession(Object.assign(x, { status: 'processed' }))));
+      setStatus(`✓ Se detectaron ${stats.length} ${stats.length === 1 ? 'voz' : 'voces'} y la transcripción ya quedó guardada. Ponle nombre a cada una y genera el resumen.`, 'ok');
     } catch (err) {
-      setStatus('⚠️ No se pudo separar las voces: ' + esc(err.message) + ' — el audio sigue disponible para descargar.', 'error');
+      setStatus('⚠️ No se pudo separar las voces: ' + esc(err.message) +
+        '. El audio está a salvo en este navegador. <button class="btn btn-outline btn-sm" onclick="Grabar.retry()">Reintentar</button>', 'error');
     }
+  }
+
+  function retry() {
+    const rec = S.rec;
+    if (!rec || !rec.audioBlob) return;
+    processAudio(rec.audioBlob, rec.duration, rec.id);
+  }
+
+  // Guarda cambios de nombres sin que el usuario tenga que tocar nada.
+  let autosaveTimer = null;
+  function autosave() {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => { if (S.rec && S.rec.segments.length) saveRecording(true); }, 600);
   }
 
   // ── Nombrar voces ─────────────────────────────────────────────────
@@ -608,8 +708,9 @@
     }
     renderVoices();
     renderTranscript();
+    autosave();
   }
-  function setTeacher(id) { if (S.rec) S.rec.teacher = id; }
+  function setTeacher(id) { if (S.rec) { S.rec.teacher = id; autosave(); } }
 
   let stopAt = null;
   function play(t) {
@@ -659,8 +760,9 @@
         segments: namedSegments(rec).map(({ start, speaker, text }) => ({ start, speaker, text }))
       });
       rec.result = result;
+      saveRecording(true);
       if (result.titulo && !$('gr-title').value.trim()) { rec.title = result.titulo; $('gr-title').value = result.titulo; }
-      setStatus('✓ Resumen listo. Puedes guardarlo, copiarlo o descargarlo.', 'ok');
+      setStatus('✓ Resumen listo y guardado. Puedes agregarlo a Prédicas, copiarlo o descargarlo.', 'ok');
       renderResult();
     } catch (err) {
       setStatus('⚠️ No se pudo generar el resumen: ' + esc(err.message), 'error');
@@ -899,13 +1001,81 @@
     renderTranscript();
     renderResult();
     showTab(x.result ? 'summary' : 'transcript');
-    setStatus('Grabación guardada abierta. El audio no se guarda en la app; usa el archivo que descargaste para escuchar las muestras.', 'ok');
+    setStatus('Grabación guardada abierta.', 'ok');
+    safe(DB.getSession(id).then(sess => DB.getAudio(id, sess && sess.mime).then(blob => {
+      if (!blob || !S.rec || S.rec.id !== id) {
+        if (S.rec && S.rec.id === id) setStatus('Grabación guardada abierta. Su audio no está en este navegador; usa el archivo descargado para escucharlo.', 'ok');
+        return;
+      }
+      const file = new File([blob], slug(x.title) + '.' + extOf(blob.type), { type: blob.type });
+      S.rec.audioBlob = file;
+      S.rec.audioUrl = URL.createObjectURL(file);
+      $('gr-audio').src = S.rec.audioUrl;
+      $('gr-download-audio').style.display = 'inline-flex';
+    })));
     $('gr-step-voices').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function deleteSaved(id) {
     if (!confirm('¿Eliminar esta grabación guardada?')) return;
     saveJSON(STORE_KEY, loadJSON(STORE_KEY, []).filter(x => x.id !== id));
+    safe(DB.remove(id));
     renderSaved();
+  }
+
+  // ── Recuperar grabaciones interrumpidas ───────────────────────────
+  async function checkRecovery() {
+    const box = $('gr-recover');
+    if (!box) return [];
+    const all = (await safe(DB.allSessions())) || [];
+    const pending = all
+      .filter(x => (x.status === 'recording' || x.status === 'stopped') && !(S.recorder && S.session && S.session.id === x.id))
+      .filter(x => !(S.rec && S.rec.id === x.id))
+      .sort((a, b) => b.id - a.id);
+    box.innerHTML = pending.map(x => {
+      const when = new Date(x.startedAt || x.id);
+      const label = when.toLocaleDateString('es', { day: 'numeric', month: 'short' }) + ' ' + when.toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' });
+      return `<div class="gr-recover-item">
+        <div style="flex:1;min-width:200px;">
+          <strong>⚠️ ${x.status === 'recording' ? 'Grabación interrumpida' : 'Grabación sin procesar'}:</strong>
+          ${esc(x.title || (x.mode === 'reunion' ? 'Reunión' : 'Prédica'))} · ${esc(label)}${x.duration ? ' · ' + mmss(x.duration) : ''}
+        </div>
+        <button class="btn btn-gold btn-sm" onclick="Grabar.recover(${x.id})">Recuperar y procesar</button>
+        <button class="btn btn-outline btn-sm" onclick="Grabar.downloadPending(${x.id})">⬇ Audio</button>
+        <button class="btn btn-outline btn-danger btn-sm" onclick="Grabar.discard(${x.id})">Descartar</button>
+      </div>`;
+    }).join('');
+    box.style.display = pending.length ? 'block' : 'none';
+    return pending;
+  }
+  async function recover(id) {
+    if (S.recorder) { toast('Primero detén la grabación actual'); return; }
+    const sess = await safe(DB.getSession(id));
+    const blob = sess && await safe(DB.getAudio(id, sess.mime));
+    if (!sess || !blob) { toast('No se encontró el audio de esa grabación'); safe(DB.remove(id)); checkRecovery(); return; }
+    if (typeof window.showView === 'function') window.showView('grabar');
+    S.session = sess;
+    if (sess.status === 'recording') persistSession({ status: 'stopped' });
+    S.liveLines = sess.liveLines || [];
+    S.session.liveLines = S.liveLines;
+    setMode(sess.mode || 'predica', true);
+    $('gr-title').value = sess.title || '';
+    $('gr-date').value = sess.date || today();
+    resetResult();
+    renderLive();
+    const file = new File([blob], sess.fileName || `grabacion-${sess.date || today()}.${extOf(blob.type)}`, { type: blob.type });
+    $('gr-recover').style.display = 'none';
+    processAudio(file, sess.duration || null, id);
+  }
+  async function downloadPending(id) {
+    const sess = await safe(DB.getSession(id));
+    const blob = sess && await safe(DB.getAudio(id, sess.mime));
+    if (!blob) { toast('No se encontró el audio'); return; }
+    downloadBlob(blob, slug(sess.title || 'grabacion') + '-' + id + '.' + extOf(blob.type));
+  }
+  async function discard(id) {
+    if (!confirm('¿Borrar esta grabación sin procesar? No se podrá recuperar.')) return;
+    await safe(DB.remove(id));
+    checkRecovery();
   }
 
   // ── Modo y limpieza ───────────────────────────────────────────────
@@ -949,12 +1119,14 @@
     renderPeople();
     renderLive();
     renderSaved();
+    checkRecovery().then(p => { if (p && p.length) toast('Hay una grabación sin procesar. Ábrela en 🎙️ Grabar.'); });
   }
 
   // Se llama al abrir la vista.
   function onShow() {
     refreshDevices(false);
     renderSaved();
+    checkRecovery();
   }
   function onHide() { if (!S.recorder) stopPreview(); }
 
@@ -962,6 +1134,7 @@
     init, onShow, onHide, start, stop, onUpload, setMode, addPerson, removePerson, tapSpeaker,
     cycleLineSpeaker, renameVoice, play, summarize, showTab, copyMarkdown, downloadMarkdown,
     downloadAudio, downloadMindmapSvg, saveRecording, saveAsSermon, openSaved, deleteSaved,
+    retry, recover, downloadPending, discard,
     permit: () => refreshDevices(true),
     isRecording: () => !!S.recorder,
     // para pruebas
