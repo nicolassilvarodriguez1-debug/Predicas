@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Iglesia Freedom — Centro de Enseñanza</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/grabar.css">
 <style>
   :root {
     --navy: #0F1B2D;
@@ -457,6 +458,9 @@
       <a class="nav-item" onclick="showView('schedule')" href="#">
         <span class="nav-icon">🗓️</span> Cronograma
       </a>
+      <a class="nav-item" onclick="showView('grabar')" href="#">
+        <span class="nav-icon">🎙️</span> Grabar
+      </a>
 
       <div class="nav-section-label" style="margin-top:12px;">Categorías</div>
       <a class="nav-item" onclick="filterByCategory('Bases de la Fe')" href="#">
@@ -486,6 +490,7 @@
     <div class="topbar">
       <div class="topbar-title" id="topbar-title">Calendario de Parashot</div>
       <div class="topbar-right">
+        <button class="btn btn-outline btn-sm" onclick="showView('grabar')">🎙️ Grabar</button>
         <button class="btn btn-outline btn-sm" onclick="showView('editor')">+ Nueva Prédica</button>
         <button class="btn btn-gold btn-sm" onclick="showView('schedule')">📊 Cronograma</button>
       </div>
@@ -620,6 +625,118 @@
         <div id="schedule-content"></div>
       </div>
 
+      <!-- ── GRABAR VIEW ── -->
+      <div class="view" id="view-grabar">
+        <div class="section-title">Grabar y resumir</div>
+        <div class="section-sub">Graba una prédica o reunión con cualquier micrófono, mira la transcripción en vivo, nombra cada voz y obtén el resumen, la enseñanza y el mapa mental.</div>
+
+        <div class="gr-card">
+          <div class="gr-row" style="margin-bottom:14px;align-items:center;">
+            <div class="gr-modes">
+              <button class="gr-mode active" data-mode="predica" onclick="Grabar.setMode('predica')">📜 Prédica / enseñanza</button>
+              <button class="gr-mode" data-mode="reunion" onclick="Grabar.setMode('reunion')">👥 Reunión</button>
+            </div>
+          </div>
+          <div class="gr-row">
+            <div class="field-group" style="flex:2;">
+              <label class="field-label">Título</label>
+              <input class="field-input" id="gr-title" placeholder="Ej: Shabat — Parashá Vayera">
+            </div>
+            <div class="field-group" style="max-width:170px;">
+              <label class="field-label">Fecha</label>
+              <input class="field-input" type="date" id="gr-date">
+            </div>
+            <div class="field-group" id="gr-parasha-group">
+              <label class="field-label">Parashá</label>
+              <select class="field-input" id="gr-parasha"></select>
+            </div>
+          </div>
+
+          <div class="gr-row" style="margin-top:14px;">
+            <div class="field-group" style="flex:2;">
+              <label class="field-label">Micrófono</label>
+              <div style="display:flex;gap:8px;">
+                <select class="field-input" id="gr-mic" style="flex:1;"><option value="">Micrófono predeterminado</option></select>
+                <button class="btn btn-outline btn-sm" id="gr-mic-permit" onclick="Grabar.permit()">Ver micrófonos</button>
+              </div>
+              <div class="gr-level"><div class="gr-level-bar" id="gr-level-bar"></div></div>
+              <label class="gr-check"><input type="checkbox" id="gr-dsp"> <span>Usar cancelación de eco y ruido del navegador. Déjalo apagado con micrófonos de conferencia 360: ya traen su propio procesamiento.</span></label>
+            </div>
+          </div>
+
+          <div style="margin-top:16px;">
+            <label class="field-label">Quiénes van a hablar</label>
+            <div style="display:flex;gap:8px;margin-top:4px;max-width:420px;">
+              <input class="field-input" id="gr-person-input" placeholder="Agregar nombre y Enter" list="gr-people-list">
+              <button class="btn btn-outline btn-sm" onclick="Grabar.addPerson()">Agregar</button>
+            </div>
+            <datalist id="gr-people-list"></datalist>
+            <div class="gr-people" id="gr-people"></div>
+          </div>
+
+          <div class="gr-controls">
+            <button class="btn gr-rec-btn" id="gr-rec-btn" onclick="Grabar.start()">● Grabar</button>
+            <button class="btn gr-stop-btn" id="gr-stop-btn" onclick="Grabar.stop()" style="display:none;">■ Detener y procesar</button>
+            <span class="gr-rec-dot" id="gr-rec-dot"></span>
+            <span class="gr-timer" id="gr-timer">0:00</span>
+            <span style="flex:1;"></span>
+            <label class="btn btn-outline btn-sm" id="gr-upload-btn" style="cursor:pointer;">📂 Subir un audio grabado
+              <input type="file" accept="audio/*,video/*" style="display:none;" onchange="Grabar.onUpload(event)">
+            </label>
+          </div>
+        </div>
+
+        <div class="gr-card">
+          <div class="gr-card-title">Transcripción en vivo <span class="gr-badge" id="gr-live-badge" style="display:none;"></span></div>
+          <div class="gr-card-sub" id="gr-live-hint">Toca un nombre para marcar quién habla ahora (opcional).</div>
+          <div class="gr-live" id="gr-live"></div>
+          <div class="gr-muted" style="margin-top:8px;">Al detener, se procesa toda la grabación para separar las voces con precisión. Tus marcas en vivo sirven para sugerir los nombres.</div>
+        </div>
+
+        <div class="gr-status" id="gr-status"></div>
+
+        <div class="gr-card" id="gr-step-voices" style="display:none;">
+          <div class="gr-card-title">Voces detectadas</div>
+          <div class="gr-card-sub">Escucha cada muestra y escribe de quién es la voz.</div>
+          <audio id="gr-audio" controls style="width:100%;margin-bottom:12px;"></audio>
+          <div id="gr-voices"></div>
+          <div class="gr-row" id="gr-teacher-row" style="margin-top:12px;align-items:center;">
+            <div class="field-group" style="max-width:320px;">
+              <label class="field-label">¿Quién está enseñando?</label>
+              <select class="field-input" id="gr-teacher"></select>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+            <button class="btn btn-gold" id="gr-summarize-btn" onclick="Grabar.summarize()" disabled>✨ Generar resumen y mapa mental</button>
+            <button class="btn btn-outline" id="gr-download-audio" onclick="Grabar.downloadAudio()" style="display:none;">⬇ Descargar audio</button>
+          </div>
+        </div>
+
+        <div class="gr-card" id="gr-step-result" style="display:none;">
+          <div class="gr-actions">
+            <button class="btn btn-gold btn-sm" id="gr-save-sermon" onclick="Grabar.saveAsSermon()" style="display:none;">📜 Guardar en Prédicas</button>
+            <button class="btn btn-outline btn-sm" onclick="Grabar.saveRecording()">💾 Guardar grabación</button>
+            <button class="btn btn-outline btn-sm" onclick="Grabar.copyMarkdown()">📋 Copiar Markdown</button>
+            <button class="btn btn-outline btn-sm" onclick="Grabar.downloadMarkdown()">⬇ Descargar .md</button>
+            <button class="btn btn-outline btn-sm" onclick="Grabar.downloadMindmapSvg()">🧠 Descargar mapa (SVG)</button>
+          </div>
+          <div class="gr-tabs">
+            <div class="gr-tab active" data-tab="summary" onclick="Grabar.showTab('summary')">Resumen</div>
+            <div class="gr-tab" data-tab="map" onclick="Grabar.showTab('map')">Mapa mental</div>
+            <div class="gr-tab" data-tab="transcript" onclick="Grabar.showTab('transcript')">Transcripción</div>
+          </div>
+          <div id="gr-tab-summary"></div>
+          <div id="gr-tab-map" style="display:none;"></div>
+          <div id="gr-tab-transcript" style="display:none;max-height:520px;overflow-y:auto;"></div>
+        </div>
+
+        <div class="gr-card">
+          <div class="gr-card-title">Grabaciones guardadas</div>
+          <div class="gr-card-sub">Se guardan en este navegador (transcripción y resumen; el audio se descarga aparte).</div>
+          <div id="gr-saved"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -674,6 +791,7 @@
       </div>
       <div class="divider"></div>
       <div style="display:flex;gap:8px;">
+        <button class="btn btn-gold btn-sm" id="sm-open-recording" style="display:none;">🎙️ Ver grabación, resumen y mapa</button>
         <button class="btn btn-outline btn-danger btn-sm" onclick="deleteCurrentSermon()">🗑 Eliminar</button>
         <button class="btn btn-outline btn-sm" onclick="closeSermonModal()">Cerrar</button>
       </div>
@@ -750,6 +868,25 @@ let SERMONS = [
     tags: ['ansiedad', 'mente', 'descanso', 'Job', 'Romanos', 'Shabbat']
   },
 ];
+
+// Guardar prédicas en este navegador (antes se perdían al recargar)
+const SERMONS_KEY = 'freedom_sermons_v1';
+try {
+  const stored = JSON.parse(localStorage.getItem(SERMONS_KEY));
+  if (Array.isArray(stored)) SERMONS = stored;
+} catch (_) {}
+function saveSermons() {
+  try { localStorage.setItem(SERMONS_KEY, JSON.stringify(SERMONS)); } catch (_) { showToast('No se pudo guardar en este navegador'); }
+}
+// Puente para el módulo de grabación (grabar.js)
+window.PARASHOT_LIST = PARASHOT;
+window.FreedomApp = {
+  upsertSermon(sermon) {
+    SERMONS = SERMONS.filter(s => s.id !== sermon.id);
+    SERMONS.unshift(sermon);
+    saveSermons();
+  }
+};
 
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
@@ -886,6 +1023,9 @@ function openSermon(id) {
   document.getElementById('sm-meta').textContent = `📅 ${formatDate(s.date)} · ${s.parasha}`;
   document.getElementById('sm-content').textContent = s.content;
   document.getElementById('sm-ai-text').textContent = s.aiAnalysis;
+  const recBtn = document.getElementById('sm-open-recording');
+  recBtn.style.display = s.recordingId ? 'inline-block' : 'none';
+  recBtn.onclick = () => { closeSermonModal(); Grabar.openSaved(s.recordingId); };
   document.getElementById('sermon-modal').classList.add('open');
 }
 
@@ -897,6 +1037,7 @@ function closeSermonModal() {
 function deleteCurrentSermon() {
   if (!currentSermonId) return;
   SERMONS = SERMONS.filter(s => s.id !== currentSermonId);
+  saveSermons();
   closeSermonModal();
   renderSermons();
   showToast('Prédica eliminada');
@@ -995,6 +1136,7 @@ async function analyzeAndSave() {
       tags: result.tags || []
     };
     SERMONS.unshift(sermon);
+    saveSermons();
     showToast('✓ Prédica guardada y categorizada');
     setTimeout(() => showView('sermons'), 1200);
   }
@@ -1090,19 +1232,24 @@ async function generateSchedule() {
 
 // ── Utils ──
 function showView(name) {
+  if (window.Grabar && name !== 'grabar') {
+    if (Grabar.isRecording() && !confirm('Se está grabando. La grabación sigue en segundo plano. ¿Cambiar de pantalla?')) return;
+    Grabar.onHide();
+  }
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
 
-  const titles = { calendar: 'Calendario de Parashot', sermons: 'Registro de Prédicas', editor: 'Nueva Prédica', schedule: 'Cronograma de Enseñanza' };
+  const titles = { calendar: 'Calendario de Parashot', sermons: 'Registro de Prédicas', editor: 'Nueva Prédica', schedule: 'Cronograma de Enseñanza', grabar: 'Grabar y Resumir' };
   document.getElementById('topbar-title').textContent = titles[name] || '';
 
   if (name === 'sermons') { activeCategory = null; document.getElementById('sermons-subtitle').textContent = 'Todas las categorías'; renderSermons(); }
   if (name === 'calendar') buildCalendar();
   if (name === 'schedule') generateSchedule();
+  if (name === 'grabar' && window.Grabar) Grabar.onShow();
 
   // Highlight nav
-  const navMap = { calendar: 0, sermons: 1, editor: 2, schedule: 3 };
+  const navMap = { calendar: 0, sermons: 1, editor: 2, schedule: 3, grabar: 4 };
   const navItems = document.querySelectorAll('.nav-item');
   if (navMap[name] !== undefined) navItems[navMap[name]].classList.add('active');
 }
@@ -1139,5 +1286,6 @@ function init() {
 
 init();
 </script>
+<script src="/grabar.js"></script>
 </body>
 </html>
