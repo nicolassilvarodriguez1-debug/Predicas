@@ -188,6 +188,43 @@
     letter-spacing: 0.3px;
   }
   .parasha-hebrew { font-size: 11px; color: var(--stone); direction: rtl; }
+  .cal-day.sat { background: #FFFCF3; }
+  .cal-day.other-month { opacity: .45; }
+  .cal-moon { font-size: 9px; color: var(--stone); margin: -2px 0 3px; }
+  .cal-moon.tentative::after { content: ' ?'; }
+  .cal-chip { display: block; font-size: 10px; line-height: 1.3; padding: 2px 5px; border-radius: 4px; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .cal-chip.feast { background: #F6E7C1; color: #7A5A12; font-weight: 600; }
+  .cal-chip.feast.cont { background: #FBF3DE; font-weight: 500; }
+  .cal-chip.sermon { background: #E7EEF8; color: var(--navy); border-left: 3px solid var(--gold); }
+  .cal-chip.rec { background: #EEF6F0; color: var(--green); }
+  .cal-chip:hover { filter: brightness(.95); }
+  .cal-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--stone); align-items: center; }
+  .cal-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .lg-parasha::before { background: var(--navy); }
+  .lg-feast::before { background: #F6E7C1; border: 1px solid #E2C77E; }
+  .lg-sermon::before { background: #E7EEF8; border-left: 3px solid var(--gold); }
+  .lg-rec::before { background: #EEF6F0; border: 1px solid #BFDCC8; }
+  .cal-source { font-size: 11px; color: var(--stone); margin-top: 12px; text-align: right; }
+
+  .week-card { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%); color: var(--cream); border-radius: 14px; padding: 22px 24px; margin-bottom: 24px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; box-shadow: var(--shadow); }
+  .week-eyebrow { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); opacity: .9; }
+  .week-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--gold); margin: 4px 0 0; }
+  .week-hebrew { font-size: 20px; direction: rtl; text-align: left; color: var(--cream); opacity: .85; }
+  .week-sig { font-style: italic; font-family: 'EB Garamond', serif; font-size: 16px; opacity: .85; margin-top: 2px; }
+  .week-readings { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 13px; margin-top: 12px; }
+  .week-readings b { color: var(--gold); font-weight: 500; }
+  .week-tema { font-family: 'EB Garamond', serif; font-size: 16px; margin-top: 10px; line-height: 1.5; }
+  .week-side { border-left: 1px solid rgba(201,168,76,.3); padding-left: 22px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+  .week-side-title { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); }
+  .week-sermon { background: rgba(255,255,255,.08); border-radius: 6px; padding: 6px 10px; cursor: pointer; margin-top: 4px; }
+  .week-sermon:hover { background: rgba(255,255,255,.14); }
+  .week-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+  .week-actions .btn-outline { color: var(--cream); border-color: rgba(201,168,76,.5); }
+  .week-feast { background: rgba(201,168,76,.15); border-radius: 6px; padding: 8px 10px; }
+  @media (max-width: 900px) { .week-card { grid-template-columns: 1fr; } .week-side { border-left: none; padding-left: 0; } }
+  .modal-sermons { margin-top: 16px; }
+  .modal-sermons .week-sermon { background: var(--cream); color: var(--text-main); }
+
   .sermon-dot {
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--gold); display: inline-block; margin-right: 2px;
@@ -501,15 +538,20 @@
 
       <!-- ── CALENDAR VIEW ── -->
       <div class="view active" id="view-calendar">
+        <div class="week-card" id="week-card"><div class="week-eyebrow">Cargando el calendario de KODESH…</div></div>
         <div class="calendar-header">
           <div class="cal-nav">
             <button class="btn btn-outline btn-icon" onclick="changeMonth(-1)">‹</button>
             <div class="cal-month" id="cal-month-label"></div>
             <button class="btn btn-outline btn-icon" onclick="changeMonth(1)">›</button>
+            <button class="btn btn-outline btn-sm" onclick="goToday()">Hoy</button>
           </div>
-          <div style="font-size:12px;color:var(--stone);">🔵 = Prédica registrada</div>
+          <div class="cal-legend">
+            <span class="lg-parasha">Parashá</span><span class="lg-feast">Fiesta</span><span class="lg-sermon">Prédica</span><span class="lg-rec">Grabación</span>
+          </div>
         </div>
         <div class="calendar-grid" id="cal-grid"></div>
+        <div class="cal-source" id="cal-source"></div>
       </div>
 
       <!-- ── SERMONS VIEW ── -->
@@ -766,9 +808,12 @@
         <div class="messianic-title">✡ Conexiones Mesiánicas</div>
         <div class="messianic-text" id="modal-messianic"></div>
       </div>
+      <div class="modal-sermons" id="modal-sermons"></div>
       <div class="divider"></div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-gold" onclick="closeModal();showView('editor')">📝 Crear Prédica de Esta Porción</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-gold" onclick="recordForParasha()">🎙️ Grabar prédica de esta porción</button>
+        <button class="btn btn-outline" onclick="writeForParasha()">📝 Escribir prédica</button>
+        <a class="btn btn-outline" id="modal-kodesh-link" href="#" target="_blank" rel="noopener">📖 Leer en KODESH</a>
         <button class="btn btn-outline" onclick="closeModal()">Cerrar</button>
       </div>
     </div>
@@ -807,27 +852,33 @@
 <!-- Toast -->
 <div class="toast" id="toast"><span class="toast-icon">✓</span><span id="toast-text"></span></div>
 
+<script src="/kodesh-calendar.js"></script>
 <script>
 // ── DATA ──
-const PARASHOT = [
-  { name:'Bereshit', hebrew:'בְּרֵאשִׁית', torah:'Gén 1:1–6:8', haftara:'Is 42:5–43:10', brit:'Jn 1:1–14', synopsis:'En el principio, Elohim crea los cielos y la tierra. Adán y Chavá son formados y colocados en el Gan Edén. La serpiente engaña a Chavá y ambos caen, trayendo la muerte y la separación de Elohim. Caín mata a Abel, y la humanidad comienza su descenso espiritual.', messianic:'Génesis 1:1 ("En el principio") refleja Juan 1:1, donde Yeshúa es el Davar/Logos por quien todo fue creado. La promesa de Génesis 3:15 —enemistad entre la simiente de la mujer y la serpiente— es la primera profecía mesiánica (Proto-Evangelio). La ofrenda de Abel aceptada prefigura el sacrificio de sangre requerido por Dios, cumplido en el Mesías.'},
-  { name:'Noach', hebrew:'נֹחַ', torah:'Gén 6:9–11:32', haftara:'Is 54:1–55:5', brit:'Mt 24:36–44', synopsis:'Noé, hombre justo, es llamado por Dios a construir el arca ante el diluvio inminente. La humanidad corrompida es juzgada, pero Noé y su familia son salvados junto a los animales. Tras el diluvio, Dios establece el Pacto Noáico con el arco iris como señal. La soberbia humana culmina en Babel.', messianic:'El arca es un tipo del Mesías: solo a través de ella se alcanza la salvación. El pacto noáico prefigura la alianza eterna que Yeshúa sella con su sangre. El juicio de las aguas prefigura el bautismo como inmersión en muerte y resurrección (1 Ped 3:18–22).'},
-  { name:'Lech Lecha', hebrew:'לֶךְ-לְךָ', torah:'Gén 12:1–17:27', haftara:'Is 40:27–41:16', brit:'Rom 4:1–25', synopsis:'Abram recibe el llamado de salir de su tierra hacia una tierra desconocida, con la promesa de convertirse en gran nación. Se establece el Pacto Abrahámico. Abram y Sarai enfrentan pruebas en Egipto. Dios reafirma el pacto, cambia sus nombres a Abraham y Sara, e instituye la circuncisión como señal.', messianic:'Abraham es justificado por fe antes de ser circuncidado (Rom 4), siendo padre de todos los creyentes. La promesa "en ti serán benditas todas las naciones" (Gál 3:8) es el Evangelio anticipado. El encuentro con Melquisedec (rey de Salem, sacerdote del Dios Altísimo) prefigura el sacerdocio eterno de Yeshúa.'},
-  { name:'Vayera', hebrew:'וַיֵּרָא', torah:'Gén 18:1–22:24', haftara:'2 Rey 4:1–37', brit:'Lc 17:26–37', synopsis:'Tres mensajeros anuncian a Abraham el nacimiento de Isaac. La intercesión de Abraham por Sodoma revela la justicia de Dios. Lot es rescatado antes de la destrucción. Sara concibe y da a luz a Isaac. La prueba suprema llega: el akedah, donde Abraham es llamado a sacrificar a su único hijo.', messianic:'El Akedah (la ligadura de Isaac) en el Monte Moriá es el tipo más claro del sacrificio de Yeshúa: el hijo amado, único, llevado al monte con la madera sobre sus hombros. El carnero provisto en su lugar anticipa la provisión de Dios en el Mesías. "Dios proveerá el cordero" (Gén 22:8) — profecía directa.'},
-  { name:'Chayei Sara', hebrew:'חַיֵּי שָׂרָה', torah:'Gén 23:1–25:18', haftara:'1 Rey 1:1–31', brit:'Mt 8:19–22', synopsis:'Sara muere y Abraham adquiere la cueva de Macpela como herencia eterna. Luego envía a su siervo Eliezer a buscar esposa para Isaac entre su parentela. Rebeca es elegida y parte con fe hacia el encuentro. El matrimonio de Isaac y Rebeca consuela a Isaac tras la pérdida de su madre.', messianic:'Eliezer (cuyo nombre significa "mi Dios es ayuda") tipifica al Espíritu Santo enviado a buscar la novia para el Hijo. Rebeca que parte sin verlo, por fe, refleja a la Iglesia/Kehila que se une al Mesías sin haberlo visto físicamente. El siervo que da regalos prefigura los dones del Espíritu.'},
-  { name:'Toldot', hebrew:'תּוֹלְדֹת', torah:'Gén 25:19–28:9', haftara:'Mal 1:1–2:7', brit:'Rom 9:6–16', synopsis:'Isaac y Rebeca reciben a los mellizos Esaú y Jacob. Desde el vientre materno pelean, y Dios declara que el mayor servirá al menor. Esaú vende su primogenitura por un guiso de lentejas. Jacob, guiado por Rebeca, obtiene la bendición del primogénito ante el ciego Isaac. Esaú jura vengarse.', messianic:'La elección de Jacob sobre Esaú ilustra la soberanía divina en la elección (Rom 9:10–13). La bendición dada al segundo hijo prefigura cómo el "segundo Adán" (Yeshúa) hereda lo que el primero perdió. Pablo utiliza este pasaje para explicar la elección de gracia.'},
-  { name:'Vayetze', hebrew:'וַיֵּצֵא', torah:'Gén 28:10–32:2', haftara:'Os 12:13–14:10', brit:'Jn 1:43–51', synopsis:'Jacob huye a Mesopotamia. En el camino tiene la visión de la escalera que une cielo y tierra, con ángeles ascendiendo y descendiendo. Trabaja catorce años por Raquel. Sus hijos con Lea, Bilha, Zilpá y Raquel forman las doce tribus. Finalmente parte en secreto, y Dios lo protege de Labán.', messianic:'La escalera de Jacob (Bet-El: "casa de Dios") es citada por Yeshúa en Juan 1:51: Él mismo es la escalera entre el cielo y la tierra. La piedra ungida en Bet-El prefigura al Mesías como piedra angular. El pacto de Dios que confirma la promesa a Jacob extiende el pacto abrahámico.'},
-  { name:'Vayishlach', hebrew:'וַיִּשְׁלַח', torah:'Gén 32:3–36:43', haftara:'Abd 1–21', brit:'Ap 7:1–12', synopsis:'Jacob lucha con el ángel toda la noche y recibe el nombre Israel: "el que lucha con Dios". El encuentro de reconciliación con Esaú. Dina es deshonrada en Siquem. Jacob regresa a Bet-El y renueva su pacto. Raquel muere dando a luz a Benjamín. Isaac muere y es sepultado.', messianic:'La lucha de Jacob con el "hombre" (Ángel del SEÑOR, manifestación pre-encarnada del Mesías) revela la lucha espiritual en la vida del creyente. El cambio de nombre a Israel anticipa la transformación que el Mesías produce en sus seguidores. La herida en el muslo señala el costo de la bendición.'},
-  { name:'Vayeshev', hebrew:'וַיֵּשֶׁב', torah:'Gén 37:1–40:23', haftara:'Am 2:6–3:8', brit:'Mt 1:1–6', synopsis:'José es vendido como esclavo por sus hermanos envidiosos. Llega a Egipto y sirve en la casa de Potifar. La esposa de Potifar lo acusa falsamente y José es encarcelado. En la cárcel interpreta los sueños del copero y el panadero. El copero olvida su promesa de mencionar a José ante Faraón.', messianic:'José es el tipo mesiánico más elaborado del Génesis: amado de su padre, rechazado por sus hermanos (que representan a Israel), vendido por 20 piezas de plata, muerto simbólicamente, exaltado a segunda posición, y finalmente revelado como salvador. Yeshúa cumple cada paralelo perfectamente.'},
-  { name:'Miketz', hebrew:'מִקֵּץ', torah:'Gén 41:1–44:17', haftara:'1 Rey 3:15–4:1', brit:'Hch 7:9–16', synopsis:'Faraón sueña con vacas y espigas. José es sacado de la cárcel para interpretar: siete años de abundancia seguidos de siete de hambre. Faraón lo exalta como virrey de Egipto. Durante el hambre, los hermanos de José vienen a comprar grano sin reconocerlo. José los prueba con diversas pruebas.', messianic:'José exaltado sobre toda la tierra de Egipto tras el sufrimiento tipifica la exaltación de Yeshúa después de la crucifixión (Fil 2:9–11). Que todos los pueblos vengan a José por provisión refleja la universalidad del Evangelio. La segunda visita de los hermanos (cuando lo reconocen) prefigura el día cuando Israel reconocerá al Mesías.'},
-  { name:'Vayigash', hebrew:'וַיִּגַּשׁ', torah:'Gén 44:18–47:27', haftara:'Ez 37:15–28', brit:'Lc 6:27–36', synopsis:'Judá intercede noblemente por Benjamín, ofreciéndose como sustituto. José no puede contenerse más y se revela a sus hermanos con llanto. Los perdona y los envía a traer a su padre. Jacob y toda su familia (70 personas) descienden a Egipto. Faraón los establece en la tierra de Gosén.', messianic:'La revelación de José a sus hermanos es uno de los tipos más emotivos del Mesías revelándose a Israel: José llora, perdona sin reproche, y la reconciliación restaura la familia. Ez 37:15–28 (haftara) habla de la reunificación de Efraín y Judá bajo un solo rey davídico — cumplimiento mesiánico final.'},
-  { name:'Vayechi', hebrew:'וַיְחִי', torah:'Gén 47:28–50:26', haftara:'1 Rey 2:1–12', brit:'Heb 11:21–22', synopsis:'Jacob bendice a sus hijos con profecías para los últimos días. A José le da una doble porción a través de Efraín y Manasés. A Judá le declara que el cetro no se apartará de él hasta Shiloh. Jacob muere y es embalsamado. José perdona nuevamente a sus hermanos y muere, pidiendo que lleven sus huesos a la Tierra Prometida.', messianic:'La profecía de Judá (Gén 49:10) —el cetro no se apartará hasta Shiloh— es una de las más directas sobre el Mesías como rey de la tribu de Judá. "Shiloh" interpretado como "aquel a quien pertenece" o "el pacificador". Los huesos de José que serán llevados a la tierra prometida tipifican la resurrección y la herencia.'},
-  { name:'Shemot', hebrew:'שְׁמוֹת', torah:'Éx 1:1–6:1', haftara:'Is 27:6–28:13', brit:'Hch 7:17–35', synopsis:'Israel en Egipto crece y un nuevo faraón los esclaviza. Moisés nace y es salvado por la hija de Faraón. Huye a Madián tras matar a un egipcio. En Horeb, Dios se le aparece en la zarza ardiente y lo llama a liberar a Israel. Moisés regresa a Egipto. Su primera presentación ante Faraón fracasa.', messianic:'Moisés como liberador tipifica al Mesías: rechazado primero por su propio pueblo (como Yeshúa en Nazaret), pero enviado de vuelta como redentor. La zarza que arde sin consumirse refleja la presencia del Ángel del SEÑOR (Yeshúa pre-encarnado). El nombre "YO SOY EL QUE SOY" (Éx 3:14) es citado por Yeshúa en Juan 8:58.'},
-  { name:'Vaera', hebrew:'וָאֵרָא', torah:'Éx 6:2–9:35', haftara:'Ez 28:25–29:21', brit:'Ap 7:14–8:6', synopsis:'Dios se revela a Moisés como YHWH (el nombre del pacto) y reafirma su promesa de redención en cuatro expresiones. Las primeras siete plagas caen sobre Egipto: agua convertida en sangre, ranas, piojos, moscas, muerte del ganado, úlceras y granizo. Faraón endurece su corazón cada vez más.', messianic:'Las plagas son juicios divinos sobre los dioses de Egipto, mostrando la supremacía de YHWH. El libro del Apocalipsis recapitula plagas similares en el juicio final. El endurecimiento del corazón de Faraón ilustra la soberanía divina en el juicio (Rom 9:17).'},
-  { name:'Bo', hebrew:'בֹּא', torah:'Éx 10:1–13:16', haftara:'Jer 46:13–28', brit:'Jn 19:31–37', synopsis:'Las últimas tres plagas: langostas, tinieblas y la muerte de los primogénitos. La institución de la Pascua (Pésaj): el cordero sin mancha, la sangre en los dinteles, la noche de vigilia. Israel sale de Egipto —el Éxodo— después de 430 años de esclavitud. La santificación de los primogénitos.', messianic:'Esta es quizás la parasha con mayor contenido mesiánico: el Cordero Pascual sin defecto, cuya sangre protege de la muerte, es el tipo más explícito de Yeshúa como "el Cordero de Dios que quita el pecado del mundo" (Jn 1:29). Juan 19:36 cita Éx 12:46 al no romper los huesos de Yeshúa.'},
-  { name:'Beshalach', hebrew:'בְּשַׁלַּח', torah:'Éx 13:17–17:16', haftara:'Jue 4:4–5:31', brit:'Ap 15:1–4', synopsis:'Israel sale de Egipto guiado por la columna de nube y fuego. Atrapados entre el mar y el ejército de Faraón, Dios abre el Mar de Juncos. Israel cruza en seco y el ejército egipcio es destruido. El Cántico de Moisés. La provisión milagrosa del maná y el agua. La batalla con Amalec.', messianic:'El cruce del Mar de Juncos es tipología bautismal (1 Cor 10:1–4): Israel sumergida en el mar como bautismo de salvación. El maná del cielo prefigura a Yeshúa como "el pan que descendió del cielo" (Jn 6:31–35). La roca que da agua tipifica al Mesías como fuente de agua viva.'},
-  { name:'Yitró', hebrew:'יִתְרוֹ', torah:'Éx 18:1–20:23', haftara:'Is 6:1–7:6', brit:'Mt 5:17–30', synopsis:'Jetro, suegro de Moisés, viene al desierto y aconseja establecer un sistema judicial delegado. Israel llega al Monte Sinaí. Después de tres días de preparación, Dios desciende en fuego y trueno y pronuncia los Diez Mandamientos. El pueblo aterrorizado pide que Moisés interceda. Regulaciones sobre el altar.', messianic:'Yeshúa en el Sermón del Monte (haftara Mt 5:17–30) no vino a abolir la Torah sino a cumplirla e interpretarla en su profundidad espiritual. La teofanía en el Sinaí —nube, fuego, trompeta, voz— anticipa la Segunda Venida (Ap 8:5). Moisés como mediador del primer pacto tipifica a Yeshúa como mediador del nuevo y mejor pacto (Heb 8:6).'},
-];
+// Parashot y calendario: vienen de KODESH (kodesh-calendar.js → window.KodeshData)
+let PARASHOT = [];
+let PARASHA_OPTIONS = []; // { label, nums } — porciones sueltas y dobles
+function buildParashaOptions() {
+  const singles = KodeshData.parashot.map(p => ({ label: p.nombre, nums: [p.num], hebrew: p.heb }));
+  const doubles = [];
+  const seen = new Set();
+  // Porciones dobles tal como aparecen en el calendario de KODESH
+  KodeshData.parashot.forEach(p => {
+    KodeshData.datesOf(p.num).forEach(d => {
+      const nums = KodeshData.parashaOn(d);
+      if (nums && nums.length > 1) {
+        const key = nums.join('-');
+        if (!seen.has(key)) { seen.add(key); doubles.push({ label: KodeshData.label(nums), nums, hebrew: KodeshData.hebrew(nums) }); }
+      }
+    });
+  });
+  const all = [];
+  singles.forEach(s1 => {
+    all.push(s1);
+    doubles.filter(d => d.nums[0] === s1.nums[0]).forEach(d => all.push(d));
+  });
+  return all;
+}
 
 const CATEGORIES = {
   'Bases de la Fe': { color: 'cat-fe', icon: '⚓' },
@@ -884,7 +935,7 @@ function saveSermons() {
   try { localStorage.setItem(SERMONS_KEY, JSON.stringify(SERMONS)); } catch (_) { showToast('No se pudo guardar en este navegador'); }
 }
 // Puente para el módulo de grabación (grabar.js)
-window.PARASHOT_LIST = PARASHOT;
+window.PARASHOT_LIST = [];
 window.FreedomApp = {
   upsertSermon(sermon) {
     SERMONS = SERMONS.filter(s => s.id !== sermon.id);
@@ -898,59 +949,171 @@ let currentYear = new Date().getFullYear();
 let activeCategory = null;
 let currentSermonId = null;
 
-// ── Calendar ──
-function buildCalendar() {
-  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  document.getElementById('cal-month-label').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+// ── Calendar (parashot y fiestas de KODESH + prédicas y grabaciones) ──
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const escH = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const isoOf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+let kodeshReady = false;
+let modalNums = [], modalShabbat = '';
 
-  const grid = document.getElementById('cal-grid');
-  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const today = new Date();
+function loadRecordings() {
+  try { return JSON.parse(localStorage.getItem('freedom_grabaciones_v1')) || []; } catch (_) { return []; }
+}
+function normName(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, ''); }
 
-  grid.innerHTML = days.map(d => `<div class="cal-day-label">${d}</div>`).join('');
+// Prédicas y grabaciones de una porción: por número guardado, por nombre o por la semana de su fecha.
+function itemsForNums(nums) {
+  if (!nums || !nums.length) return { sermons: [], recs: [] };
+  const names = nums.map(n => KodeshData.byNum(n)).filter(Boolean).flatMap(p => [normName(p.nombre), normName(p.translit)]);
+  const hit = item => {
+    if (Array.isArray(item.parashaNums) && item.parashaNums.some(n => nums.includes(n))) return true;
+    const pn = normName(item.parasha);
+    if (pn && names.some(n => n && (pn.includes(n) || n.includes(pn)))) return true;
+    if (item.date) { const w = KodeshData.weekParasha(item.date); return w.nums.some(n => nums.includes(n)); }
+    return false;
+  };
+  const sermons = SERMONS.filter(hit).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const linked = new Set(SERMONS.map(s => s.recordingId).filter(Boolean));
+  const recs = loadRecordings().filter(r => !linked.has(r.id) && r.mode !== 'reunion').filter(hit).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return { sermons, recs };
+}
+function itemsList(items) {
+  const rows = items.sermons.map(s => `<div class="week-sermon" onclick="closeModal();openSermon(${s.id})">📜 ${escH(s.title)} <span style="opacity:.7">· ${escH(formatDate(s.date))}</span></div>`)
+    .concat(items.recs.map(r => `<div class="week-sermon" onclick="closeModal();Grabar.openSaved(${r.id})">🎙️ ${escH((r.result && r.result.titulo) || r.title)} <span style="opacity:.7">· ${escH(formatDate(r.date))}</span></div>`));
+  return rows.join('');
+}
 
-  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-  // Empty cells
-  for (let i = 0; i < firstDay; i++) {
-    grid.innerHTML += `<div class="cal-day empty"></div>`;
-  }
-
-  // Assign parashot to Shabbatot (Saturdays)
-  let parashaIndex = getStartParasha();
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(currentYear, currentMonth, d);
-    const isToday = date.toDateString() === today.toDateString();
-    const isSat = date.getDay() === 6;
-    const hasSermon = SERMONS.some(s => s.date === `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
-
-    let parashaChip = '';
-    let parashaData = null;
-    if (isSat) {
-      parashaData = PARASHOT[parashaIndex % PARASHOT.length];
-      parashaIndex++;
-      parashaChip = `<div class="parasha-chip">${parashaData.name}</div><div class="parasha-hebrew">${parashaData.hebrew}</div>`;
-    }
-
-    const pClick = parashaData ? `openParasha(${PARASHOT.indexOf(parashaData)})` : '';
-
-    grid.innerHTML += `
-      <div class="cal-day ${isToday?'today':''} ${parashaData?'has-parasha':''}" onclick="${pClick}">
-        <div class="day-num ${isToday?'today-num':''}">${d}</div>
-        ${parashaChip}
-        ${hasSermon ? '<div style="margin-top:4px;"><span class="sermon-dot"></span><span style="font-size:9px;color:var(--stone);">prédica</span></div>' : ''}
-      </div>`;
+async function ensureKodesh() {
+  if (kodeshReady) return true;
+  try {
+    await KodeshData.load();
+    PARASHOT = KodeshData.parashot;
+    PARASHA_OPTIONS = buildParashaOptions();
+    window.PARASHOT_LIST = PARASHA_OPTIONS.map(o => ({ name: o.label, hebrew: o.hebrew, nums: o.nums }));
+    kodeshReady = true;
+    fillParashaSelect(document.getElementById('sermon-parasha'));
+    autoParasha('sermon-date', 'sermon-parasha');
+    return true;
+  } catch (err) {
+    document.getElementById('week-card').innerHTML = '<div class="week-eyebrow">No se pudo cargar el calendario de KODESH</div>';
+    return false;
   }
 }
 
-function getStartParasha() {
-  // Approximate: Jan 2026 = Shemot
-  const base = new Date(2026, 0, 3);
-  const now = new Date(currentYear, currentMonth, 1);
-  const weeks = Math.round((now - base) / (7 * 86400000));
-  return Math.max(0, weeks) % PARASHOT.length;
+function fillParashaSelect(sel) {
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— General —</option>' + PARASHA_OPTIONS.map(o =>
+    `<option value="${escH(o.label)}" data-nums="${o.nums.join(',')}">${escH(o.label)} — ${escH(o.hebrew || '')}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+// Selecciona la parashá de la semana según la fecha del formulario.
+function autoParasha(dateId, selId) {
+  const d = document.getElementById(dateId), sel = document.getElementById(selId);
+  if (!d || !sel || !kodeshReady || !d.value) return;
+  const w = KodeshData.weekParasha(d.value);
+  const label = w.nums.length ? w.label : (w.nextLabel || '');
+  if (label) sel.value = label;
+}
+function selectedNums(selId) {
+  const sel = document.getElementById(selId);
+  const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
+  return opt && opt.dataset.nums ? opt.dataset.nums.split(',').map(Number) : [];
+}
+
+function renderWeekCard() {
+  const card = document.getElementById('week-card');
+  const today = new Date();
+  const w = KodeshData.weekParasha(today);
+  const nums = w.nums.length ? w.nums : (w.nextNums || []);
+  const ps = nums.map(n => KodeshData.byNum(n)).filter(Boolean);
+  const sat = new Date(w.shabbat + 'T12:00:00');
+  const feastToday = KodeshData.feastsOn(today)[0];
+  const nf = KodeshData.nextFeast(today);
+  const items = itemsForNums(nums);
+  const readings = ps.map(p => `<b>Torá</b><span>${escH(p.torah)}</span><b>Haftará</b><span>${escH(p.haftarah)}</span><b>Brit Jadashá</b><span>${escH(p.mesianica)}</span>`).join('');
+  const feastHtml = feastToday
+    ? `<div class="week-feast">🕎 Hoy: <b>${escH(feastToday.name)}</b> · ${escH(feastToday.he)}</div>`
+    : nf ? `<div class="week-feast">Próxima fiesta: <b>${escH(nf.n)}</b> (${escH(nf.alt)}) · ${nf.days === 0 ? 'hoy' : nf.days === 1 ? 'mañana' : 'en ' + nf.days + ' días'} · ${escH(formatDate(isoOf(nf.start)))}${nf.tentative ? ' <span style="opacity:.7">(fecha estimada)</span>' : ''}</div>` : '';
+  card.innerHTML = `
+    <div>
+      <div class="week-eyebrow">Parashá de esta semana · Shabat ${sat.getDate()} de ${MONTHS_ES[sat.getMonth()].toLowerCase()}${w.feast && !w.nums.length ? ' · ' + escH(w.feast.name) : ''}</div>
+      <div class="week-title">${escH(KodeshData.label(nums) || w.label)}</div>
+      <div class="week-hebrew">${escH(KodeshData.hebrew(nums))}</div>
+      ${ps.length ? `<div class="week-sig">${ps.map(p => '«' + escH(p.sig) + '»').join(' · ')}</div>` : ''}
+      <div class="week-readings">${readings}</div>
+      ${ps.length ? `<div class="week-tema">${ps.map(p => escH(p.tema)).join(' · ')}</div>` : ''}
+    </div>
+    <div class="week-side">
+      ${feastHtml}
+      <div>
+        <div class="week-side-title">Prédicas de esta porción</div>
+        ${itemsList(items) || '<div style="opacity:.7;margin-top:4px;">Aún no hay prédicas de esta porción.</div>'}
+      </div>
+      <div class="week-actions">
+        <button class="btn btn-gold btn-sm" onclick="modalNums=[${nums.join(',')}];modalShabbat='${w.shabbat}';recordForParasha()">🎙️ Grabar la de esta semana</button>
+        <button class="btn btn-outline btn-sm" onclick="openParasha([${nums.join(',')}], '${w.shabbat}')">Ver porción</button>
+        ${nums[0] ? `<a class="btn btn-outline btn-sm" href="${KodeshData.link(nums[0])}" target="_blank" rel="noopener">📖 KODESH</a>` : ''}
+      </div>
+    </div>`;
+}
+
+async function buildCalendar() {
+  document.getElementById('cal-month-label').textContent = `${MONTHS_ES[currentMonth]} ${currentYear}`;
+  const grid = document.getElementById('cal-grid');
+  if (!kodeshReady) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:24px;color:var(--stone);">Cargando parashot y fiestas de KODESH…</div>';
+    if (!(await ensureKodesh())) { grid.innerHTML = '<div style="grid-column:1/-1;padding:24px;color:var(--red);">No se pudo cargar el calendario de KODESH.</div>'; return; }
+  }
+  renderWeekCard();
+
+  const todayIso = isoOf(new Date());
+  const linked = new Set(SERMONS.map(s => s.recordingId).filter(Boolean));
+  const recs = loadRecordings().filter(r => !linked.has(r.id));
+  let html = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => `<div class="cal-day-label">${d}</div>`).join('');
+
+  const first = new Date(currentYear, currentMonth, 1, 12);
+  const start = new Date(first); start.setDate(1 - first.getDay());
+  const last = new Date(currentYear, currentMonth + 1, 0, 12);
+  const end = new Date(last); end.setDate(last.getDate() + (6 - last.getDay()));
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const key = isoOf(d);
+    const inMonth = d.getMonth() === currentMonth;
+    const isSat = d.getDay() === 6;
+    const nums = KodeshData.parashaOn(d);
+    const feasts = KodeshData.feastsOn(d);
+    const moon = KodeshData.monthStartOn(d);
+    const daySermons = SERMONS.filter(s => s.date === key);
+    const dayRecs = recs.filter(r => r.date === key);
+    const weekNums = KodeshData.weekParasha(d);
+    const clickNums = (weekNums.nums.length ? weekNums.nums : (weekNums.nextNums || []));
+
+    let inner = `<div class="day-num ${key === todayIso ? 'today-num' : ''}">${d.getDate()}</div>`;
+    if (moon) inner += `<div class="cal-moon ${moon.tentative ? 'tentative' : ''}" title="Luna nueva · comienza el ${escH(moon.name)}">🌒 ${escH(moon.name)}${moon.old ? ' (' + escH(moon.old) + ')' : ''}</div>`;
+    feasts.forEach(f => {
+      inner += `<span class="cal-chip feast ${f.first ? '' : 'cont'}" title="${escH(f.base)} · ${escH(f.alt)} · ${escH(f.he)}${f.tentative ? ' (fecha estimada)' : ''}">${f.first || f.id === 'sukot' && f.day === 8 ? '🕎 ' : ''}${escH(f.name)}</span>`;
+    });
+    if (nums) {
+      inner += `<div class="parasha-chip" title="${escH(KodeshData.label(nums))}">${escH(KodeshData.label(nums))}</div><div class="parasha-hebrew">${escH(KodeshData.hebrew(nums))}</div>`;
+    } else if (isSat) {
+      inner += `<div class="cal-moon" title="El ciclo de lecturas de KODESH no asigna parashá a este Shabat (Shabat de fiesta en el calendario rabínico). Se continúa con la siguiente.">Sin lectura semanal</div>`;
+    }
+    daySermons.forEach(s => {
+      inner += `<span class="cal-chip sermon" onclick="event.stopPropagation();openSermon(${s.id})" title="${escH(s.title)}">📜 ${escH(s.title)}</span>`;
+    });
+    dayRecs.forEach(r => {
+      const t = (r.result && r.result.titulo) || r.title;
+      inner += `<span class="cal-chip rec" onclick="event.stopPropagation();Grabar.openSaved(${r.id})" title="${escH(t)}">🎙️ ${escH(t)}</span>`;
+    });
+    const sat = isoOf(KodeshData.shabbatOf(d));
+    html += `<div class="cal-day ${key === todayIso ? 'today' : ''} ${isSat ? 'sat' : ''} ${inMonth ? '' : 'other-month'} ${nums ? 'has-parasha' : ''}"
+      onclick="openParasha([${clickNums.join(',')}], '${sat}')">${inner}</div>`;
+  }
+  grid.innerHTML = html;
+  document.getElementById('cal-source').textContent = KodeshData.source === 'kodesh'
+    ? 'Parashot y fiestas: calendario de KODESH (kodeshbible.com)'
+    : 'Parashot y fiestas: copia local del calendario de KODESH (no se pudo conectar con kodeshbible.com)';
 }
 
 function changeMonth(dir) {
@@ -959,20 +1122,55 @@ function changeMonth(dir) {
   if (currentMonth < 0) { currentMonth = 11; currentYear--; }
   buildCalendar();
 }
+function goToday() {
+  currentMonth = new Date().getMonth();
+  currentYear = new Date().getFullYear();
+  buildCalendar();
+}
 
-function openParasha(index) {
-  const p = PARASHOT[index];
-  document.getElementById('modal-eyebrow').textContent = `Parasha ${index + 1} de ${PARASHOT.length}`;
-  document.getElementById('modal-title').textContent = p.name;
-  document.getElementById('modal-hebrew').textContent = p.hebrew;
-  document.getElementById('modal-synopsis').textContent = p.synopsis;
-  document.getElementById('modal-messianic').textContent = p.messianic;
-  document.getElementById('modal-readings').innerHTML = `
-    <div class="reading-row"><span class="reading-label">Torah:</span><span class="reading-ref">${p.torah}</span></div>
-    <div class="reading-row"><span class="reading-label">Haftara:</span><span class="reading-ref">${p.haftara}</span></div>
-    <div class="reading-row"><span class="reading-label">Brit Jad.:</span><span class="reading-ref">${p.brit}</span></div>
-  `;
+function openParasha(nums, shabbatIso) {
+  if (!kodeshReady || !nums || !nums.length) return;
+  modalNums = nums; modalShabbat = shabbatIso || '';
+  const ps = nums.map(n => KodeshData.byNum(n)).filter(Boolean);
+  const sat = shabbatIso ? new Date(shabbatIso + 'T12:00:00') : null;
+  document.getElementById('modal-eyebrow').textContent =
+    `Parashá ${nums.join(' y ')} de 54${sat ? ` · Shabat ${sat.getDate()} de ${MONTHS_ES[sat.getMonth()].toLowerCase()} ${sat.getFullYear()}` : ''}`;
+  document.getElementById('modal-title').textContent = KodeshData.label(nums);
+  document.getElementById('modal-hebrew').textContent = KodeshData.hebrew(nums);
+  document.getElementById('modal-synopsis').innerHTML = ps.map(p => `<p><em>«${escH(p.sig)}»</em> — ${escH(p.tema)}</p>`).join('');
+  document.getElementById('modal-messianic').innerHTML = ps.map(p => `<p>${escH(p.conexion)}</p>`).join('');
+  document.getElementById('modal-readings').innerHTML = ps.map(p => `
+    ${ps.length > 1 ? `<div class="reading-row"><span class="reading-label" style="color:var(--gold)">${escH(p.nombre)}</span></div>` : ''}
+    <div class="reading-row"><span class="reading-label">Torá:</span><span class="reading-ref">${escH(p.torah)}</span></div>
+    <div class="reading-row"><span class="reading-label">Haftará:</span><span class="reading-ref">${escH(p.haftarah)}</span></div>
+    <div class="reading-row"><span class="reading-label">Brit Jad.:</span><span class="reading-ref">${escH(p.mesianica)}</span></div>`).join('');
+  const items = itemsForNums(nums);
+  const list = itemsList(items);
+  document.getElementById('modal-sermons').innerHTML = `<div class="messianic-title" style="color:var(--navy)">📜 Prédicas de esta porción</div>` +
+    (list || '<div style="font-size:13px;color:var(--stone);">Aún no hay prédicas de esta porción.</div>');
+  document.getElementById('modal-kodesh-link').href = KodeshData.link(nums[0]);
   document.getElementById('parasha-modal').classList.add('open');
+}
+
+// Abrir Grabar o el editor ya con la parashá y la fecha de ese Shabat.
+function recordForParasha() {
+  closeModal();
+  showView('grabar');
+  const label = KodeshData.label(modalNums);
+  const title = document.getElementById('gr-title');
+  if (title && !title.value) title.value = `Shabat — Parashá ${label}`;
+  const date = document.getElementById('gr-date');
+  const todayIso = isoOf(new Date());
+  if (date && modalShabbat && modalShabbat !== isoOf(KodeshData.shabbatOf(todayIso))) date.value = modalShabbat;
+  const sel = document.getElementById('gr-parasha');
+  if (sel) { fillParashaSelect(sel); sel.value = label; }
+}
+function writeForParasha() {
+  closeModal();
+  showView('editor');
+  const sel = document.getElementById('sermon-parasha');
+  if (sel) sel.value = KodeshData.label(modalNums);
+  if (modalShabbat) document.getElementById('sermon-date').value = modalShabbat;
 }
 
 function closeModal() {
@@ -1135,6 +1333,7 @@ async function analyzeAndSave() {
       title,
       date: document.getElementById('sermon-date').value || new Date().toISOString().split('T')[0],
       parasha: document.getElementById('sermon-parasha').value || 'General',
+      parashaNums: selectedNums('sermon-parasha'),
       category: result.category,
       content,
       aiAnalysis: result.analysis,
@@ -1279,14 +1478,8 @@ function init() {
   // Set default date to today
   document.getElementById('sermon-date').value = new Date().toISOString().split('T')[0];
 
-  // Populate parasha select
-  const sel = document.getElementById('sermon-parasha');
-  PARASHOT.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.name;
-    opt.textContent = `${p.name} — ${p.hebrew}`;
-    sel.appendChild(opt);
-  });
+  // La parashá se elige sola según la fecha (calendario de KODESH)
+  document.getElementById('sermon-date').addEventListener('change', () => autoParasha('sermon-date', 'sermon-parasha'));
 }
 
 init();

@@ -1182,7 +1182,9 @@
       id: rec.id, mode: rec.mode, title: rec.title, date: rec.date, duration: rec.duration,
       segments: rec.segments, speakers: rec.speakers.map(s => ({ id: s.id, secs: s.secs, turns: s.turns, pct: s.pct, samples: s.samples })),
       names: rec.names, teacher: rec.teacher, result: rec.result,
-      driveFileId: rec.driveFileId || null, driveLink: rec.driveLink || null, savedAt: new Date().toISOString()
+      driveFileId: rec.driveFileId || null, driveLink: rec.driveLink || null,
+      parasha: rec.mode === 'predica' ? currentParasha().parasha : '', parashaNums: rec.mode === 'predica' ? currentParasha().parashaNums : [],
+      savedAt: new Date().toISOString()
     };
   }
   function saveRecording(silent) {
@@ -1210,7 +1212,8 @@
       id: rec.id,
       title: r.titulo || rec.title,
       date: rec.date,
-      parasha: ($('gr-parasha') && $('gr-parasha').value) || 'General',
+      parasha: currentParasha().parasha,
+      parashaNums: currentParasha().parashaNums,
       category: r.categoria || 'Reflexión',
       content,
       aiAnalysis: `Enseñanza de ${rec.names[rec.teacher] || ''}. ${r.ensenanza_central || ''}`.trim(),
@@ -1521,10 +1524,8 @@
   function init() {
     if (!$('view-grabar')) return;
     $('gr-date').value = today();
-    const ps = $('gr-parasha');
-    if (ps && window.PARASHOT_LIST) {
-      ps.innerHTML = '<option value="">— General —</option>' + window.PARASHOT_LIST.map(p => `<option value="${esc(p.name)}">${esc(p.name)} — ${esc(p.hebrew)}</option>`).join('');
-    }
+    // La parashá se elige sola según la fecha (calendario de KODESH en index.html)
+    $('gr-date').addEventListener('change', () => { if (typeof autoParasha === 'function') autoParasha('gr-date', 'gr-parasha'); });
     $('gr-mic').addEventListener('change', e => {
       S.deviceId = e.target.value;
       localStorage.setItem('freedom_mic', S.deviceId);
@@ -1551,7 +1552,28 @@
   }
 
   // Se llama al abrir la vista.
+  function fillParasha() {
+    const sel = $('gr-parasha');
+    if (!sel || typeof fillParashaSelect !== 'function' || typeof ensureKodesh !== 'function') return;
+    ensureKodesh().then(ok => {
+      if (!ok) return;
+      const had = sel.options.length > 1;
+      fillParashaSelect(sel);
+      if (!had || !sel.value) autoParasha('gr-date', 'gr-parasha');
+    });
+  }
+  function currentParasha() {
+    const label = ($('gr-parasha') && $('gr-parasha').value) || '';
+    const nums = typeof selectedNums === 'function' ? selectedNums('gr-parasha') : [];
+    if (label) return { parasha: label, parashaNums: nums };
+    if (window.KodeshData && S.rec && S.rec.date) {
+      try { const w = KodeshData.weekParasha(S.rec.date); if (w.nums.length) return { parasha: w.label, parashaNums: w.nums }; } catch (_) {}
+    }
+    return { parasha: 'General', parashaNums: [] };
+  }
+
   function onShow() {
+    fillParasha();
     refreshDevices(false);
     renderSaved();
     checkRecovery();

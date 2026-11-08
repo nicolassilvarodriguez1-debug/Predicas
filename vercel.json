@@ -21,6 +21,10 @@
       "destination": "/api/config.js"
     },
     {
+      "source": "/api/kodesh-data",
+      "destination": "/api/kodesh-data.js"
+    },
+    {
       "source": "/",
       "destination": "/index.html"
     }
